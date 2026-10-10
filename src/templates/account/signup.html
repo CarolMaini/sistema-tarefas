@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% load socialaccount %}
+
+{% block title %}Criar conta | Organizador de Tarefas{% endblock %}
+
+{% block content %}
+<main class="auth-shell auth-shell-signup">
+  <aside class="auth-aside" aria-label="Organizador de Tarefas">
+    <img
+      class="auth-photo"
+      src="https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=1800&q=85"
+      alt="Caderno aberto com anotações de planejamento semanal"
+    >
+    <div class="aside-wash"></div>
+    <a class="brand brand-light" href="{% url 'account_signup' %}" aria-label="Organizador de Tarefas, página inicial">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      <span>organiza<span class="brand-dot">.</span></span>
+    </a>
+    <div class="aside-copy">
+      <p class="eyebrow"><span class="eyebrow-line"></span> UM BOM COMEÇO</p>
+      <h1>O que importa<br>fica mais leve<br><em>quando é</em><br>compartilhado.</h1>
+      <p class="aside-note">Organize sua semana com quem faz parte dela.</p>
+    </div>
+    <div class="aside-bottom">
+      <span class="aside-index">02 <span></span> 03</span>
+      <span>Seu próximo passo começa aqui.</span>
+    </div>
+  </aside>
+
+  <section class="auth-main">
+    <div class="mobile-brand brand">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      <span>organiza<span class="brand-dot">.</span></span>
+    </div>
+    <div class="auth-content auth-content-signup">
+      <div class="auth-heading">
+        <p class="auth-kicker">COMECE POR AQUI</p>
+        <h2>Crie sua conta</h2>
+        <p class="auth-subtitle">Leva só um minuto. Sua rotina agradece.</p>
+      </div>
+
+      {% if form.non_field_errors %}
+        <div class="form-alert" role="alert">{{ form.non_field_errors }}</div>
+      {% endif %}
+      {% if messages %}
+        {% for message in messages %}<div class="form-alert form-alert-success" role="status">{{ message }}</div>{% endfor %}
+      {% endif %}
+
+      <form class="auth-form" method="post" action="{% url 'account_signup' %}">
+        {% csrf_token %}
+        {{ redirect_field }}
+        {% for field in form %}
+          <div class="form-field{% if field.errors %} has-error{% endif %}">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<div class="field-help">{{ field.help_text|safe }}</div>{% endif %}
+            {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+          </div>
+        {% endfor %}
+        <button class="button button-primary" type="submit">
+          <span>Criar minha conta</span>
+          <span class="button-arrow" aria-hidden="true">&#8594;</span>
+        </button>
+      </form>
+
+      <div class="auth-divider"><span>ou cadastre-se com</span></div>
+      <a class="button button-google" href="{% provider_login_url 'google' process='login' %}">
+        <svg aria-hidden="true" viewBox="0 0 48 48"><path fill="#4285F4" d="M43.61 24.5c0-1.35-.12-2.65-.35-3.9H24v7.38h11a9.42 9.42 0 0 1-4.1 6.18v5.05h6.64c3.89-3.59 6.07-8.87 6.07-14.71Z"/><path fill="#34A853" d="M24 44c5.53 0 10.17-1.83 13.56-4.96l-6.64-5.05c-1.83 1.23-4.17 1.96-6.92 1.96-5.32 0-9.83-3.59-11.44-8.42H5.7v5.21A20 20 0 0 0 24 44Z"/><path fill="#FBBC05" d="M12.56 27.53a12 12 0 0 1 0-7.06v-5.21H5.7a20 20 0 0 0 0 17.48l6.86-5.21Z"/><path fill="#EA4335" d="M24 12.05c3 0 5.7 1.03 7.82 3.05l5.87-5.87C34.16 5.95 29.53 4 24 4A20 20 0 0 0 5.7 15.26l6.86 5.21C14.17 15.64 18.68 12.05 24 12.05Z"/></svg>
+        <span>Continuar com Google</span>
+      </a>
+      <p class="auth-switch">Já tem uma conta? <a class="text-link" href="{% url 'account_login' %}">Entrar</a></p>
+      <p class="auth-legal">Ao criar sua conta, você concorda com os termos de uso e a política de privacidade.</p>
+    </div>
+    <footer class="auth-footer"><span>© 2026 Organiza</span><span>Feito para a vida real.</span></footer>
+  </section>
+</main>
+{% endblock %}
