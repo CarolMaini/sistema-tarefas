@@ -541,6 +541,40 @@ Implementar espaços compartilhados, membros, papéis por espaço, tarefas e atr
 
 Implementar regras de recorrência, geração idempotente de ocorrências e visualizações semanal e mensal.
 
+### Fase 4.1 — Criação de recorrência e visibilidade de ocorrências (incremento obrigatório)
+
+Permitir que uma tarefa receba uma regra de recorrência diretamente pela interface, gerar as ocorrências imediatamente e exibir nas telas de tarefa e calendário as instâncias que de fato serão executadas. Esse passo é crucial para que a recorrência deixe de ser um conceito interno e passe a ser um fluxo utilizável pela equipe.
+
+Critérios de aceite:
+- o usuário consegue criar uma regra de recorrência a partir de uma tarefa existente;
+- a regra aceita frequência semanal, quinzenal e mensal e seleciona os dias da semana;
+- ao salvar, o sistema gera as ocorrências dentro do intervalo configurado;
+- as tarefas listadas mostram as ocorrências futuras mais próximas;
+- o calendário exibe as ocorrências concretas do mês e não apenas a tarefa base.
+
+### Fase 4.2 — Execução de ocorrências e conclusão de atribuições (incremento obrigatório)
+
+A execução real do trabalho deve ser tratada como uma ocorrência individual, com detalhes da data, do responsável e do estado da conclusão. A interface deve permitir abrir a ocorrência e registrar a ação do usuário em sua própria atribuição, sem permitir que um responsável conclua a tarefa de outro participante.
+
+Critérios de aceite:
+- cada ocorrência possui página própria com data, tarefa e responsáveis;
+- o usuário consegue concluir apenas a sua atribuição na ocorrência;
+- a marcação de conclusão persiste corretamente e bloqueia alterações indevidas;
+- a listagem de ocorrências futuramente mostra o caminho para a execução da instância concreta.
+
+### Fase 4.3 — Atribuição de ocorrências a membros do espaço (incremento obrigatório)
+
+A tarefa recorrente não é concluída só pela criação da regra; cada ocorrência precisa poder ser designada a um ou mais membros do workspace. Esse passo fecha a ponte entre a programação da recorrência e a execução real, permitindo distribuir responsabilidades de forma explícita e rastreável.
+
+Além disso, na própria criação da recorrência, o usuário deve poder escolher o responsável padrão para as ocorrências geradas, de forma que a execução já comece com a atribuição definida.
+
+Critérios de aceite:
+- um gestor ou colaborador do espaço consegue atribuir um responsável à ocorrência;
+- na criação da recorrência, o responsável padrão pode ser selecionado antes do salvamento;
+- a lista de atribuíveis inclui o proprietário do workspace e os membros ativos do espaço;
+- cada membro pode receber uma atribuição única por ocorrência;
+- a atribuição aparece na página de detalhe da ocorrência e orienta a conclusão individual de cada responsável.
+
 ### Fase 5 — Notificações e auditoria (4–6 dias)
 
 Implementar notificações persistentes, entrega assíncrona de e-mails e eventos de auditoria.
@@ -557,9 +591,11 @@ Estimativa global indicativa: aproximadamente 23 a 37 dias úteis de desenvolvim
 
 **Fase 2 — Identidade e acesso: parcialmente implementada.** Django Allauth está configurado para cadastro, login por e-mail e senha, redefinição de senha e verificação obrigatória de e-mail. O provedor Google, suas variáveis de ambiente e as rotas estão preparados; o fluxo OAuth real depende de credenciais Google e ainda não foi homologado. As telas responsivas de login e cadastro foram criadas em Django Templates com Tailwind via CDN e CSS próprio. A gestão explícita de permissões globais e os respectivos testes de autorização ainda estão pendentes.
 
-**Verificações mais recentes:** 5 testes passaram; Ruff e `manage.py check` passaram; `makemigrations --check --dry-run` não encontrou alterações pendentes. O pytest emite um aviso de descontinuação para `EMAIL_BACKEND`, sem falha nos testes.
+**Fase 4 — Recorrências, calendário e execução: parcialmente implementada.** A geração idempotente de ocorrências foi validada para recorrência semanal, quinzenal e mensal, a criação da regra passou a existir na interface, a visualização mensal no calendário já está funcional e a execução detalhada da ocorrência foi implementada. O passo pendente e agora obrigatório é a atribuição explícita da ocorrência a membros do workspace, além da conclusão individual por responsável.
 
-As Fases 3 a 6 ainda não foram iniciadas. Espaços, membros, papéis por espaço, tarefas, recorrências, calendário, notificações e auditoria permanecem fora da implementação atual.
+**Verificações mais recentes:** 21 testes passaram; Ruff e `manage.py check` passaram; `makemigrations --check --dry-run` não encontrou alterações pendentes. O pytest emite um aviso de descontinuação para `EMAIL_BACKEND`, sem falha nos testes.
+
+As Fases 3 e 5 a 6 ainda não foram concluídas. Espaços, membros, papéis por espaço, notificações e auditoria continuam sendo módulos posteriores. A implementação atual prioriza o fluxo de recorrência e sua visibilidade antes de avançar para notificações.
 
 ## 14. Ordem de execução com o GitHub Copilot
 
