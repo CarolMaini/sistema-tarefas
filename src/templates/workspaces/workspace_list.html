@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Espaços | Organizador de Tarefas{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-6xl px-6 py-10">
+  <div class="mb-8 flex items-center justify-between gap-4">
+    <div>
+      <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Colaboração</p>
+      <h1 class="mt-2 text-3xl font-bold text-slate-900">Meus espaços</h1>
+    </div>
+    <a href="{% url 'workspaces:create' %}" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Novo espaço</a>
+  </div>
+
+  {% if workspaces %}
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {% for workspace in workspaces %}
+        <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div class="mb-4 flex items-center justify-between gap-3">
+            <h2 class="text-xl font-semibold text-slate-900">{{ workspace.name }}</h2>
+            <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">Ativo</span>
+          </div>
+          <p class="mb-6 min-h-12 text-sm text-slate-600">{{ workspace.description|default:"Sem descrição." }}</p>
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-xs uppercase tracking-[0.2em] text-slate-400">{{ workspace.memberships.count }} membros</span>
+            <a href="{% url 'workspaces:detail' workspace.pk %}" class="text-sm font-semibold text-slate-900">Abrir</a>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+      <p class="text-lg font-medium text-slate-700">Você ainda não participa de nenhum espaço.</p>
+      <p class="mt-2 text-sm text-slate-500">Crie um espaço para começar a organizar as tarefas da equipe.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -35,6 +35,9 @@ INSTALLED_APPS = [
     "allauth.socialaccount",
     "allauth.socialaccount.providers.google",
     "apps.accounts",
+    "apps.workspaces",
+    "apps.tasks",
+    "apps.scheduling",
 ]
 
 MIDDLEWARE = [
