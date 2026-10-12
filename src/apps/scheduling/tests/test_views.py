@@ -2,10 +2,12 @@ from datetime import date
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.scheduling.models import ScheduleRule, TaskOccurrence
-from apps.tasks.models import Task
+from apps.tasks.models import Task, TaskAssignment, TaskExecution
 from apps.workspaces.models import Workspace
 
 
@@ -85,7 +87,154 @@ def test_occurrence_detail_allows_own_assignment_completion(client):
 
     assert completion_response.status_code == 302
     assignment.refresh_from_db()
+    assert assignment.status == "pending"
+
+    execution_response = client.post(
+        reverse("scheduling:occurrence-detail", args=[workspace.pk, occurrence.pk]),
+        {
+            "assignment_id": assignment.pk,
+            "started_at": "2026-10-20T09:00",
+            "ended_at": "2026-10-20T10:00",
+            "comments": "Execução concluída.",
+        },
+    )
+    assert execution_response.status_code == 302
+
+    completion_response = client.post(
+        reverse(
+            "scheduling:complete-assignment",
+            args=[workspace.pk, occurrence.pk, assignment.pk],
+        )
+    )
+    assert completion_response.status_code == 302
+    assignment.refresh_from_db()
     assert assignment.status == "completed"
+
+
+@pytest.mark.django_db
+def test_assignee_can_record_execution_with_comments_and_private_attachment(
+    client, settings, tmp_path
+):
+    settings.MEDIA_ROOT = tmp_path
+    user = get_user_model().objects.create_user(
+        username="execution-user",
+        email="execution@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Execução detalhada", owner=user)
+    task = Task.objects.create(workspace=workspace, title="Preparar relatório", created_by=user)
+    occurrence = TaskOccurrence.objects.create(
+        task=task,
+        schedule_rule=None,
+        scheduled_date=date(2026, 10, 12),
+    )
+    assignment = occurrence.assignments.create(user=user)
+    client.force_login(user)
+
+    response = client.post(
+        reverse("scheduling:occurrence-detail", args=[workspace.pk, occurrence.pk]),
+        {
+            "assignment_id": assignment.pk,
+            "started_at": "2026-10-12T09:00",
+            "ended_at": "2026-10-12T10:30",
+            "comments": "Relatório revisado e enviado.",
+            "attachment": SimpleUploadedFile(
+                "evidencia.pdf",
+                b"%PDF-1.4\nEvidence\n%%EOF",
+                content_type="application/pdf",
+            ),
+        },
+    )
+
+    assert response.status_code == 302
+    execution = TaskExecution.objects.get(assignment=assignment)
+    assert execution.comments == "Relatório revisado e enviado."
+    assert timezone.localtime(execution.started_at).hour == 9
+    assert timezone.localtime(execution.ended_at).hour == 10
+    assert execution.attachment.name.startswith("task-executions/")
+    assignment.refresh_from_db()
+    assert assignment.status == TaskAssignment.Status.PENDING
+
+    attachment_url = reverse(
+        "scheduling:execution-attachment",
+        args=[workspace.pk, occurrence.pk, execution.pk],
+    )
+    assert client.get(attachment_url).status_code == 200
+
+    outsider = get_user_model().objects.create_user(
+        username="execution-outsider",
+        email="execution-outsider@example.com",
+        password="Strong-password-123!",
+    )
+    client.force_login(outsider)
+    assert client.get(attachment_url).status_code == 404
+
+
+@pytest.mark.django_db
+def test_execution_rejects_end_time_before_start_time(client):
+    user = get_user_model().objects.create_user(
+        username="invalid-execution-user",
+        email="invalid-execution@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Horários", owner=user)
+    task = Task.objects.create(workspace=workspace, title="Conferir horários", created_by=user)
+    occurrence = TaskOccurrence.objects.create(
+        task=task,
+        schedule_rule=None,
+        scheduled_date=date(2026, 10, 12),
+    )
+    assignment = occurrence.assignments.create(user=user)
+    client.force_login(user)
+
+    response = client.post(
+        reverse("scheduling:occurrence-detail", args=[workspace.pk, occurrence.pk]),
+        {
+            "assignment_id": assignment.pk,
+            "started_at": "2026-10-12T10:00",
+            "ended_at": "2026-10-12T09:00",
+            "comments": "Horários inválidos.",
+        },
+    )
+
+    assert response.status_code == 400
+    assert TaskExecution.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_assignee_cannot_record_execution_for_another_member(client):
+    owner = get_user_model().objects.create_user(
+        username="execution-owner",
+        email="execution-owner@example.com",
+        password="Strong-password-123!",
+    )
+    assignee = get_user_model().objects.create_user(
+        username="execution-assignee",
+        email="execution-assignee@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Execução restrita", owner=owner)
+    task = Task.objects.create(workspace=workspace, title="Ação restrita", created_by=owner)
+    occurrence = TaskOccurrence.objects.create(
+        task=task,
+        schedule_rule=None,
+        scheduled_date=date(2026, 10, 12),
+    )
+    assignment = occurrence.assignments.create(user=assignee)
+    client.force_login(owner)
+
+    response = client.post(
+        reverse("scheduling:occurrence-detail", args=[workspace.pk, occurrence.pk]),
+        {
+            "assignment_id": assignment.pk,
+            "started_at": "2026-10-12T09:00",
+            "ended_at": "2026-10-12T10:00",
+            "comments": "Tentativa indevida.",
+        },
+    )
+
+    assert response.status_code == 404
+    assert not TaskExecution.objects.exists()
 
 
 @pytest.mark.django_db

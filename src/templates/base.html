@@ -11,9 +11,222 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+    <style>
+      body {
+        margin: 0;
+        background: #f4f2ed;
+        color: #1f2937;
+        font-family: "Segoe UI", sans-serif;
+      }
+      .page-shell {
+        display: flex;
+        min-height: 100vh;
+      }
+      .sidebar {
+        width: 260px;
+        background: #1f2937;
+        color: #f9fafb;
+        padding: 24px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 700;
+      }
+      .brand-mark {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: #f59e0b;
+        color: #111827;
+        display: grid;
+        place-items: center;
+        font-weight: 800;
+      }
+      .nav-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .nav-item {
+        color: #d1d5db;
+        text-decoration: none;
+        padding: 10px 12px;
+        border-radius: 10px;
+        transition: 0.2s ease;
+      }
+      .nav-item.active,
+      .nav-item:hover {
+        background: rgba(255,255,255,0.08);
+        color: white;
+      }
+      .sidebar-card {
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+        padding: 14px 12px;
+      }
+      .label {
+        margin: 0 0 6px;
+        color: #9ca3af;
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+      .content-panel {
+        flex: 1;
+        padding: 28px;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: rgba(244, 242, 237, 0.9);
+        backdrop-filter: blur(12px);
+        padding-bottom: 12px;
+      }
+      .user-menu {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: white;
+        padding: 10px 14px;
+        border-radius: 999px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+      }
+      .user-menu a {
+        color: #111827;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(160px, 1fr));
+        gap: 18px;
+        margin-bottom: 24px;
+      }
+      .stat-card,
+      .panel {
+        background: white;
+        border-radius: 18px;
+        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+        padding: 18px 20px;
+      }
+      .stat-card p {
+        margin: 0 0 8px;
+        color: #6b7280;
+      }
+      .stat-card strong {
+        font-size: 1.7rem;
+      }
+      .dashboard-grid {
+        display: grid;
+        grid-template-columns: 1fr 1.2fr;
+        gap: 20px;
+      }
+      .list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .list a {
+        display: block;
+        text-decoration: none;
+        color: #111827;
+        background: #f9fafb;
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      .placeholder-box {
+        background: #f8fafc;
+        border: 1px dashed #cbd5e1;
+        border-radius: 14px;
+        padding: 16px;
+        color: #475569;
+      }
+      @media (max-width: 900px) {
+        .page-shell {
+          flex-direction: column;
+        }
+        .sidebar {
+          width: 100%;
+          height: auto;
+          position: static;
+        }
+        .stats-grid,
+        .dashboard-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
     {% block extra_head %}{% endblock %}
   </head>
   <body>
-    {% block content %}{% endblock %}
+    {% block content %}
+      {% if request.user.is_authenticated %}
+        <div class="page-shell">
+          <aside class="sidebar" aria-label="Menu lateral principal">
+            <div class="brand">
+              <span class="brand-mark">OT</span>
+              <div>
+                <strong>Organizador</strong>
+                <small>de Tarefas</small>
+              </div>
+            </div>
+
+            <nav class="nav-stack">
+              <a href="{% url 'dashboard:home' %}" class="nav-item {% if request.path == '/' %}active{% endif %}">Dashboard</a>
+              <a href="{% url 'workspaces:list' %}" class="nav-item">Espaços</a>
+              <a href="#" class="nav-item">Tarefas</a>
+              <a href="#" class="nav-item">Calendário</a>
+              <a href="#" class="nav-item">Recorrências</a>
+              <a href="#" class="nav-item">Notificações</a>
+            </nav>
+
+            <div class="sidebar-card">
+              <p class="label">Perfil</p>
+              <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+            </div>
+          </aside>
+
+          <main class="content-panel">
+            <header class="topbar">
+              <div>
+                <p class="label" style="margin:0;">Workspace</p>
+                <strong>{{ request.user.username }}</strong>
+              </div>
+
+              <div class="user-menu">
+                <span>{{ request.user.get_full_name|default:request.user.username }}</span>
+                <a href="{% url 'account_logout' %}">Sair</a>
+              </div>
+            </header>
+
+            {% if messages %}
+              <div class="mb-4 space-y-2" aria-live="polite">
+                {% for message in messages %}
+                  <p class="rounded-lg px-4 py-3 text-sm {% if message.tags == 'error' %}bg-red-50 text-red-800{% else %}bg-emerald-50 text-emerald-800{% endif %}" role="status">{{ message }}</p>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            {% block page_content %}{% endblock %}
+          </main>
+        </div>
+      {% endif %}
+    {% endblock %}
   </body>
 </html>

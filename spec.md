@@ -42,6 +42,38 @@ Central de notificações no sistema e envio de e-mails assíncronos.
 6. O sistema terá um painel de notificações, com opção de marcar notificações como lidas, além de envio de e-mails.
 7. Os recursos serão acessíveis pela interface web responsiva, utilizando Django Templates e Tailwind CSS.
 
+### Requisitos de experiência e produto adicionados para a próxima etapa
+
+Os itens abaixo não eram parte do escopo inicial, mas foram identificados como requisitos de produto e de experiência necessários para a próxima fase do projeto. Eles devem ser incorporados ao backlog e tratados como requisitos formais antes de qualquer nova implementação funcional crítica.
+
+1. Navegação lateral
+   - O sistema deve possuir um menu lateral persistente para acesso rápido a espaços, tarefas, calendário, recorrências e demais áreas principais.
+   - A navegação lateral deve refletir o contexto do workspace ativo e facilitar a troca entre áreas sem perder o contexto do espaço atual.
+
+2. Menu de usuário
+   - Deve existir um menu de usuário no cabeçalho ou no painel principal para acessar perfil, alterar senha, visualizar preferências e sair do sistema.
+   - As ações básicas do usuário devem estar centralizadas em um único ponto de acesso para reduzir navegação redundante.
+
+3. Rota principal do projeto
+   - A rota principal da aplicação deve ser o dashboard, e não uma página genérica ou sem contexto.
+   - Quando o usuário não estiver autenticado, o fluxo padrão do Django deve redirecionar para login ao tentar acessar rota protegida; a aplicação não deve criar uma rota pública conflitante que substitua esse comportamento.
+
+4. Execução da tarefa com dados completos
+   - A tela de execução da tarefa deve coletar todas as informações necessárias da atividade, incluindo horário de início, horário de fim, comentários e upload de imagem ou anexo relevante.
+   - A execução deve permitir registrar o histórico da ação executada, evidências e observações relevantes para acompanhamento.
+
+5. Sistema de pontuação
+   - O sistema deve contar com um mecanismo de pontuação para recompensar conclusão de tarefas, atribuições, desafios ou progresso por espaço.
+   - A pontuação deve ter regras explícitas de cálculo, atualização e visibilidade, além de persistência no banco e impacto na experiência do usuário.
+   - A pontuação deve ser tratada como funcionalidade de produto, não como complemento visual improvisado.
+
+6. Regras de UX e segurança associadas
+   - O dashboard deve resumir o resumo do usuário, tarefas pendentes, ocorrências programadas, notificações e progresso geral do workspace.
+   - O sistema deve preservar a separação entre visão geral e execução detalhada, sem misturar informações de navegação, trabalho e pontuação em um único fluxo.
+   - A autenticação, a navegação e a navegação por contexto devem obedecer ao padrão do Django e ao modelo de permissões por workspace.
+
+Esses itens devem ser tratados como requisitos normativos para a próxima etapa e não como ajustes pontuais de interface.
+
 ## 2. Arquitetura tecnológica
 
 | Componente             | Decisão                                                                   |
@@ -683,7 +715,7 @@ A especificação funcional está definida, mas há algumas decisões operaciona
 - Provedor de e-mail: SMTP ou serviço transacional, com credenciais protegidas.
 - Política de exclusão: retenção de contas, espaços e tarefas históricas.
 - Prazo de retenção de auditoria: definido conforme necessidade operacional e obrigações legais.
-- Anexos: tipos e limites permitidos, política de acesso e capacidade de armazenamento.
+- Anexos: no registro de execução do MVP são aceitos JPG, PNG e PDF de até 10 MB, com acesso protegido por associação ao workspace; retenção e capacidade de armazenamento de produção ainda precisam ser definidas.
 - Lembretes: antecedência, horário de envio e fuso horário.
 - Escala de processamento: volume esperado de usuários, tarefas e ocorrências para dimensionar workers e banco.
 - Política de exceções: como tratar feriados, pausas, mudanças de responsáveis e ocorrências canceladas.

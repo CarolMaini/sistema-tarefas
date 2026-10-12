@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block page_content %}
+<div>
+  <div class="mb-6">
+    <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Resumo</p>
+    <h1 class="mt-2 text-3xl font-bold text-slate-900">Dashboard</h1>
+  </div>
+
+  <section class="stats-grid">
+    <div class="stat-card">
+      <p>Meus espaços</p>
+      <strong>{{ workspaces|length }}</strong>
+    </div>
+    <div class="stat-card">
+      <p>Tarefas pendentes</p>
+      <strong>{{ pending_tasks }}</strong>
+    </div>
+    <div class="stat-card">
+      <p>Ocorrências</p>
+      <strong>{{ upcoming_occurrences }}</strong>
+    </div>
+    <div class="stat-card">
+      <p>Hoje</p>
+      <strong>{{ today|date:"d/m/Y" }}</strong>
+    </div>
+  </section>
+
+  <section class="dashboard-grid">
+    <div class="panel">
+      <h2>Espaços</h2>
+      {% if workspaces %}
+        <ul class="list">
+          {% for workspace in workspaces %}
+            <li>
+              <a href="{% url 'workspaces:detail' pk=workspace.pk %}">{{ workspace.name }}</a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>Você ainda não participa de nenhum espaço.</p>
+      {% endif %}
+    </div>
+
+    <div class="panel">
+      <h2>Próximas ações</h2>
+      <p>Seu painel central deve mostrar tarefas, ocorrências e progresso por workspace.</p>
+      <div class="placeholder-box">
+        Área reservada para pendências, notificações e resumo do workspace.
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

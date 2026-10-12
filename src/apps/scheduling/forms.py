@@ -1,7 +1,65 @@
 from django import forms
 from django.contrib.auth import get_user_model
 
+from apps.tasks.models import TaskExecution
+
 from .models import ScheduleRule
+
+DATETIME_FIELD_CLASSES = (
+    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm "
+    "text-slate-800 focus:border-slate-600 focus:outline-none"
+)
+TEXTAREA_CLASSES = DATETIME_FIELD_CLASSES
+FILE_FIELD_CLASSES = (
+    "block w-full text-sm text-slate-700 file:mr-4 file:rounded-md file:border-0 "
+    "file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-semibold "
+    "file:text-slate-800"
+)
+
+
+class TaskExecutionForm(forms.ModelForm):
+    class Meta:
+        model = TaskExecution
+        fields = ["started_at", "ended_at", "comments", "attachment"]
+        labels = {
+            "started_at": "Horário de início",
+            "ended_at": "Horário de fim",
+            "comments": "Comentários da execução",
+            "attachment": "Imagem ou PDF de evidência",
+        }
+        widgets = {
+            "started_at": forms.DateTimeInput(
+                attrs={
+                    "type": "datetime-local",
+                    "class": DATETIME_FIELD_CLASSES,
+                },
+                format="%Y-%m-%dT%H:%M",
+            ),
+            "ended_at": forms.DateTimeInput(
+                attrs={
+                    "type": "datetime-local",
+                    "class": DATETIME_FIELD_CLASSES,
+                },
+                format="%Y-%m-%dT%H:%M",
+            ),
+            "comments": forms.Textarea(
+                attrs={
+                    "rows": 4,
+                    "class": TEXTAREA_CLASSES,
+                },
+            ),
+            "attachment": forms.ClearableFileInput(
+                attrs={
+                    "class": FILE_FIELD_CLASSES,
+                    "accept": ".jpg,.jpeg,.png,.pdf",
+                },
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["started_at"].required = True
+        self.fields["ended_at"].required = True
 
 
 class ScheduleRuleForm(forms.ModelForm):

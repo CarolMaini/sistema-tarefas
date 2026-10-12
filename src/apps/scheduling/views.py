@@ -6,15 +6,15 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import redirect_to_login
-from django.http import Http404
+from django.http import FileResponse, Http404
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.views.generic import CreateView, DetailView, TemplateView, View
 
-from apps.tasks.models import Task, TaskAssignment
+from apps.tasks.models import Task, TaskAssignment, TaskExecution
 from apps.workspaces.models import Workspace
 
-from .forms import ScheduleRuleForm
+from .forms import ScheduleRuleForm, TaskExecutionForm
 from .models import ScheduleRule, TaskOccurrence
 from .services import generate_occurrences
 
@@ -120,9 +120,65 @@ class TaskOccurrenceDetailView(LoginRequiredMixin, DetailView):
         context["current_user_assignment"] = self.object.assignments.filter(
             user=self.request.user,
         ).first()
+        context["execution_form"] = kwargs.get("execution_form", TaskExecutionForm())
+        context["execution_records"] = (
+            TaskExecution.objects.filter(assignment__occurrence=self.object)
+            .select_related("assignment__user", "created_by")
+            .prefetch_related("assignment__occurrence")
+        )
         context["assignable_users"] = assignable_users
         context["can_assign_occurrence"] = self.workspace.can_create_tasks(self.request.user)
         return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        assignment_id = request.POST.get("assignment_id")
+        assignment = self.object.assignments.filter(
+            pk=assignment_id,
+            user=request.user,
+            status=TaskAssignment.Status.PENDING,
+        ).first()
+        if assignment is None:
+            raise Http404
+
+        form = TaskExecutionForm(request.POST, request.FILES)
+        if form.is_valid():
+            execution = form.save(commit=False)
+            execution.assignment = assignment
+            execution.created_by = request.user
+            execution.save()
+            messages.success(request, "Registro de execução salvo.")
+            return redirect(
+                "scheduling:occurrence-detail",
+                workspace_id=self.workspace.pk,
+                pk=self.object.pk,
+            )
+
+        return self.render_to_response(
+            self.get_context_data(execution_form=form),
+            status=400,
+        )
+
+
+class TaskExecutionAttachmentView(LoginRequiredMixin, View):
+    def get(self, request, *args, **kwargs):
+        workspace = Workspace.objects.filter(pk=kwargs["workspace_id"]).first()
+        if workspace is None or not workspace.can_view(request.user):
+            raise Http404
+
+        execution = TaskExecution.objects.filter(
+            pk=kwargs["execution_id"],
+            assignment__occurrence__pk=kwargs["pk"],
+            assignment__occurrence__task__workspace=workspace,
+        ).first()
+        if execution is None or not execution.attachment:
+            raise Http404
+
+        return FileResponse(
+            execution.attachment.open("rb"),
+            as_attachment=True,
+            filename=execution.attachment.name.rsplit("/", 1)[-1],
+        )
 
 
 class TaskOccurrenceAssignView(LoginRequiredMixin, View):
@@ -200,6 +256,13 @@ class TaskAssignmentCompleteView(LoginRequiredMixin, View):
             raise Http404
         if assignment.user_id != request.user.pk:
             raise Http404
+        if not assignment.executions.exists():
+            messages.error(request, "Registre os detalhes da execução antes de concluir.")
+            return redirect(
+                "scheduling:occurrence-detail",
+                workspace_id=self.workspace.pk,
+                pk=assignment.occurrence_id,
+            )
 
         try:
             assignment.mark_completed(request.user)

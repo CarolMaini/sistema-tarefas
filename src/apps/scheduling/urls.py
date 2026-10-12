@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     ScheduleRuleCreateView,
     TaskAssignmentCompleteView,
+    TaskExecutionAttachmentView,
     TaskOccurrenceAssignView,
     TaskOccurrenceDetailView,
     WorkspaceCalendarView,
@@ -20,6 +21,11 @@ urlpatterns = [
         "workspaces/<uuid:workspace_id>/occurrences/<uuid:pk>/",
         TaskOccurrenceDetailView.as_view(),
         name="occurrence-detail",
+    ),
+    path(
+        "workspaces/<uuid:workspace_id>/occurrences/<uuid:pk>/executions/<int:execution_id>/attachment/",
+        TaskExecutionAttachmentView.as_view(),
+        name="execution-attachment",
     ),
     path(
         "workspaces/<uuid:workspace_id>/occurrences/<uuid:pk>/assign/",

@@ -1,8 +1,41 @@
 import uuid
+from pathlib import Path
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+from PIL import Image, UnidentifiedImageError
+
+MAX_EXECUTION_ATTACHMENT_SIZE = 10 * 1024 * 1024
+
+
+def execution_attachment_path(instance, filename):
+    extension = Path(filename).suffix.lower()
+    return f"task-executions/{uuid.uuid4().hex}{extension}"
+
+
+def validate_execution_attachment(upload):
+    if upload.size > MAX_EXECUTION_ATTACHMENT_SIZE:
+        raise ValidationError("O anexo deve ter no máximo 10 MB.")
+
+    extension = Path(upload.name).suffix.lower()
+    if extension == ".pdf":
+        if not upload.read(5).startswith(b"%PDF-"):
+            raise ValidationError("O arquivo enviado não é um PDF válido.")
+    elif extension in {".jpg", ".jpeg", ".png"}:
+        try:
+            image = Image.open(upload)
+            expected_format = {".jpg": "JPEG", ".jpeg": "JPEG", ".png": "PNG"}[extension]
+            if image.format != expected_format:
+                raise ValidationError("A extensão do arquivo não corresponde à imagem enviada.")
+            image.verify()
+        except (UnidentifiedImageError, OSError) as exc:
+            raise ValidationError("O arquivo enviado não é uma imagem válida.") from exc
+    else:
+        raise ValidationError("Envie uma imagem JPG/PNG ou um arquivo PDF.")
+
+    upload.seek(0)
 
 
 class Task(models.Model):
@@ -88,3 +121,36 @@ class TaskAssignment(models.Model):
 
     def __str__(self):
         return f"{self.user} -> {self.occurrence}"
+
+
+class TaskExecution(models.Model):
+    assignment = models.ForeignKey(
+        TaskAssignment,
+        on_delete=models.PROTECT,
+        related_name="executions",
+    )
+    started_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    comments = models.TextField(blank=True)
+    attachment = models.FileField(
+        upload_to=execution_attachment_path,
+        blank=True,
+        validators=[validate_execution_attachment],
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="task_executions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def clean(self):
+        super().clean()
+        if self.started_at and self.ended_at and self.ended_at < self.started_at:
+            raise ValidationError({"ended_at": "O horário de fim deve ser posterior ao início."})
+
+    def __str__(self):
+        return f"Execução de {self.assignment} em {self.created_at}"
