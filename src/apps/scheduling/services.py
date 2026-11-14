@@ -5,6 +5,8 @@ from datetime import date, datetime, timedelta
 
 from django.db import transaction
 
+from apps.tasks.models import TaskAssignment
+
 from .models import ScheduleRule, TaskOccurrence
 
 
@@ -110,6 +112,16 @@ def _monthly_dates(rule: ScheduleRule, start_date: date, end_date: date) -> list
     return sorted(set(result))
 
 
+def _get_or_create_assignment(occurrence: TaskOccurrence, user):
+    return TaskAssignment.objects.get_or_create(occurrence=occurrence, user=user)
+
+
+def assign_occurrence(occurrence: TaskOccurrence, user):
+    if not occurrence.task.workspace.can_assign_user(user):
+        raise ValueError("O responsável não é elegível para este espaço.")
+    return _get_or_create_assignment(occurrence, user)
+
+
 def generate_occurrences(rule: ScheduleRule, start_date: date, end_date: date) -> dict[str, int]:
     if not rule.is_active:
         return {"created": 0, "existing": 0, "ignored": 0}
@@ -131,6 +143,12 @@ def generate_occurrences(rule: ScheduleRule, start_date: date, end_date: date) -
     ignored = 0
 
     with transaction.atomic():
+        default_assignee = rule.default_assignee
+        has_eligible_default = bool(
+            default_assignee
+            and rule.task.workspace.can_assign_user(default_assignee)
+        )
+
         for candidate in candidates:
             occurrence, was_created = TaskOccurrence.objects.get_or_create(
                 task=rule.task,
@@ -149,6 +167,12 @@ def generate_occurrences(rule: ScheduleRule, start_date: date, end_date: date) -
                 occurrence.schedule_rule = rule
                 occurrence.save(update_fields=["schedule_rule"])
 
+            if (
+                occurrence.schedule_rule_id == rule.pk
+                and has_eligible_default
+            ):
+                _get_or_create_assignment(occurrence, default_assignee)
+
     return {
         "created": created,
         "existing": existing,
@@ -156,4 +180,4 @@ def generate_occurrences(rule: ScheduleRule, start_date: date, end_date: date) -
     }
 
 
-__all__ = ["generate_occurrences"]
+__all__ = ["assign_occurrence", "generate_occurrences"]

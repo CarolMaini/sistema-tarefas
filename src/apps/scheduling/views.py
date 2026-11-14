@@ -16,7 +16,7 @@ from apps.workspaces.models import Workspace
 
 from .forms import ScheduleRuleForm, TaskExecutionForm
 from .models import ScheduleRule, TaskOccurrence
-from .services import generate_occurrences
+from .services import assign_occurrence, generate_occurrences
 
 
 class ScheduleRuleCreateView(LoginRequiredMixin, CreateView):
@@ -60,21 +60,6 @@ class ScheduleRuleCreateView(LoginRequiredMixin, CreateView):
         end_date = rule.ends_on or (start_date + timedelta(days=365))
         generate_occurrences(rule, start_date, end_date)
 
-        assignee = form.cleaned_data.get("assignee")
-        if assignee:
-            occurrences = self.task.occurrences.filter(
-                schedule_rule=rule,
-                scheduled_date__gte=start_date,
-                scheduled_date__lte=end_date,
-            ).prefetch_related("assignments")
-            pending = []
-            for occurrence in occurrences:
-                if occurrence.assignments.filter(user=assignee).exists():
-                    continue
-                pending.append(TaskAssignment(occurrence=occurrence, user=assignee))
-            if pending:
-                TaskAssignment.objects.bulk_create(pending)
-
         messages.success(self.request, "Recorrência criada com sucesso.")
         return redirect(
             reverse("tasks:list", kwargs={"workspace_id": self.workspace.pk})
@@ -103,18 +88,6 @@ class TaskOccurrenceDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        assignable_users = []
-        seen = set()
-
-        members = self.workspace.memberships.select_related("user").filter(
-            is_active=True,
-        )
-        for user in [self.workspace.owner] + [item.user for item in members]:
-            if user is None or user.pk in seen:
-                continue
-            seen.add(user.pk)
-            assignable_users.append(user)
-
         context["workspace"] = self.workspace
         context["assignments"] = self.object.assignments.select_related("user").all()
         context["current_user_assignment"] = self.object.assignments.filter(
@@ -126,7 +99,7 @@ class TaskOccurrenceDetailView(LoginRequiredMixin, DetailView):
             .select_related("assignment__user", "created_by")
             .prefetch_related("assignment__occurrence")
         )
-        context["assignable_users"] = assignable_users
+        context["assignable_users"] = self.workspace.get_assignable_users()
         context["can_assign_occurrence"] = self.workspace.can_create_tasks(self.request.user)
         return context
 
@@ -216,18 +189,15 @@ class TaskOccurrenceAssignView(LoginRequiredMixin, View):
         except user_model.DoesNotExist as exc:
             raise Http404 from exc
 
-        is_valid_member = (
-            assignee.pk == self.workspace.owner_id
-            or self.workspace.memberships.filter(user=assignee, is_active=True).exists()
-        )
-        if not is_valid_member:
-            raise Http404
+        try:
+            _, created = assign_occurrence(occurrence, assignee)
+        except ValueError as exc:
+            raise Http404 from exc
 
-        if occurrence.assignments.filter(user=assignee).exists():
-            messages.info(request, "Este responsável já está atribuído à ocorrência.")
-        else:
-            occurrence.assignments.create(user=assignee)
+        if created:
             messages.success(request, "Responsável atribuído com sucesso.")
+        else:
+            messages.info(request, "Este responsável já está atribuído à ocorrência.")
 
         return redirect(
             "scheduling:occurrence-detail",

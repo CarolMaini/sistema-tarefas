@@ -1,5 +1,4 @@
 from django import forms
-from django.contrib.auth import get_user_model
 
 from apps.tasks.models import TaskExecution
 
@@ -78,12 +77,6 @@ class ScheduleRuleForm(forms.ModelForm):
         label="Dias da semana",
     )
 
-    assignee = forms.ModelChoiceField(
-        queryset=get_user_model().objects.none(),
-        required=False,
-        label="Responsável padrão",
-    )
-
     class Meta:
         model = ScheduleRule
         fields = [
@@ -92,8 +85,9 @@ class ScheduleRuleForm(forms.ModelForm):
             "ends_on",
             "weekdays",
             "anchor_date",
-            "assignee",
+            "default_assignee",
         ]
+        labels = {"default_assignee": "Responsável padrão"}
         widgets = {
             "starts_on": forms.DateInput(attrs={"type": "date"}),
             "ends_on": forms.DateInput(attrs={"type": "date"}),
@@ -105,19 +99,7 @@ class ScheduleRuleForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         if workspace:
-            users = [workspace.owner]
-            users.extend(
-                membership.user
-                for membership in workspace.memberships.select_related("user").filter(
-                    is_active=True,
-                )
-            )
-            user_ids = {user.pk for user in users if user is not None}
-            self.fields["assignee"].queryset = (
-                get_user_model()
-                .objects.filter(pk__in=user_ids)
-                .order_by("username")
-            )
+            self.fields["default_assignee"].queryset = workspace.get_assignable_users()
 
         if self.instance and self.instance.pk:
             self.fields["weekdays"].initial = [

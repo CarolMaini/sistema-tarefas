@@ -15,6 +15,13 @@ class ScheduleRule(models.Model):
         on_delete=models.PROTECT,
         related_name="schedule_rules",
     )
+    default_assignee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="default_schedule_rules",
+        null=True,
+        blank=True,
+    )
     frequency = models.CharField(
         max_length=20,
         choices=Frequency.choices,
