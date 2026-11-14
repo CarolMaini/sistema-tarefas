@@ -22,8 +22,8 @@
         </div>
       {% endfor %}
       <div class="flex items-center justify-end gap-3 pt-4">
-        <a href="{% url 'tasks:list' workspace.pk %}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700">Cancelar</a>
-        <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Salvar recorrência</button>
+        <a href="{% url 'tasks:list' workspace.pk %}" class="app-button app-button-secondary">Cancelar</a>
+        <button type="submit" class="app-button app-button-primary">Salvar recorrência</button>
       </div>
     </form>
   </div>

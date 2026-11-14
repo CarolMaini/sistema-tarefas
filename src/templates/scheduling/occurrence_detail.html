@@ -9,7 +9,6 @@
       <p class="text-sm uppercase tracking-[0.2em] text-slate-500">{{ workspace.name }}</p>
       <h1 class="mt-2 text-3xl font-bold text-slate-900">{{ occurrence.task.title }}</h1>
     </div>
-    <a href="{% url 'tasks:list' workspace.pk %}" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700">Voltar</a>
   </div>
 
   <div class="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
@@ -47,7 +46,7 @@
               <option value="{{ user.pk }}">{{ user.get_full_name|default:user.username }}</option>
             {% endfor %}
           </select>
-          <button type="submit" class="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white">Salvar atribuição</button>
+          <button type="submit" class="app-button app-button-primary w-full">Salvar atribuição</button>
         </form>
       {% endif %}
 
@@ -67,7 +66,7 @@
             {% if assignment.user == request.user and assignment.status != 'completed' %}
               <form method="post" action="{% url 'scheduling:complete-assignment' workspace.pk occurrence.pk assignment.pk %}" class="mt-3">
                 {% csrf_token %}
-                <button type="submit" class="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white">Concluir minha ação</button>
+                <button type="submit" class="app-button app-button-primary w-full">Concluir minha ação</button>
               </form>
             {% endif %}
           </li>
@@ -93,7 +92,7 @@
           </div>
         {% endfor %}
         {% for error in execution_form.non_field_errors %}<p class="text-sm text-red-700">{{ error }}</p>{% endfor %}
-        <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Salvar execução</button>
+        <button type="submit" class="app-button app-button-primary">Salvar execução</button>
       </form>
     </section>
   {% endif %}
@@ -111,7 +110,7 @@
           <p class="mt-1 text-sm text-slate-600">{{ execution.started_at|date:"d/m/Y H:i" }} – {{ execution.ended_at|date:"d/m/Y H:i" }}</p>
           {% if execution.comments %}<p class="mt-2 whitespace-pre-line text-sm text-slate-700">{{ execution.comments }}</p>{% endif %}
           {% if execution.attachment %}
-            <a class="mt-2 inline-block text-sm font-semibold text-slate-800 underline" href="{% url 'scheduling:execution-attachment' workspace.pk occurrence.pk execution.pk %}">Baixar evidência</a>
+            <a class="app-button app-button-secondary mt-2" href="{% url 'scheduling:execution-attachment' workspace.pk occurrence.pk execution.pk %}">Baixar evidência</a>
           {% endif %}
         </li>
       {% empty %}

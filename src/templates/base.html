@@ -205,8 +205,36 @@
           <main class="content-panel">
             <header class="topbar">
               <div>
-                <p class="label" style="margin:0;">Workspace</p>
-                <strong>{{ request.user.username }}</strong>
+                {% if request.resolver_match.view_name == "dashboard:home" %}
+                  {% url 'workspaces:list' as back_fallback %}
+                {% elif request.resolver_match.view_name == "workspaces:list" %}
+                  {% url 'dashboard:home' as back_fallback %}
+                {% elif request.resolver_match.view_name == "workspaces:create" or request.resolver_match.view_name == "workspaces:detail" %}
+                  {% url 'workspaces:list' as back_fallback %}
+                {% elif request.resolver_match.view_name == "tasks:list" %}
+                  {% url 'workspaces:detail' request.resolver_match.kwargs.workspace_id as back_fallback %}
+                {% elif request.resolver_match.view_name == "tasks:create" %}
+                  {% url 'tasks:list' request.resolver_match.kwargs.workspace_id as back_fallback %}
+                {% elif request.resolver_match.view_name == "scheduling:calendar" %}
+                  {% url 'workspaces:detail' request.resolver_match.kwargs.workspace_id as back_fallback %}
+                {% elif request.resolver_match.view_name == "scheduling:create" %}
+                  {% url 'scheduling:calendar' request.resolver_match.kwargs.workspace_id as back_fallback %}
+                {% elif request.resolver_match.view_name == "scheduling:occurrence-detail" %}
+                  {% url 'scheduling:calendar' request.resolver_match.kwargs.workspace_id as back_fallback %}
+                {% else %}
+                  {% url 'dashboard:home' as back_fallback %}
+                {% endif %}
+                <div class="topbar-identity">
+                  <a class="back-control" href="{{ back_fallback }}" data-back-fallback="{{ back_fallback }}" aria-label="Voltar" title="Voltar">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+                      <path d="M19 12H5m0 0 7 7m-7-7 7-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </a>
+                  <div>
+                    <p class="label">Workspace</p>
+                    <strong>{{ request.user.username }}</strong>
+                  </div>
+                </div>
               </div>
 
               <div class="user-menu">
@@ -228,5 +256,20 @@
         </div>
       {% endif %}
     {% endblock %}
+    {% if request.user.is_authenticated %}
+      <script>
+        document.querySelectorAll("[data-back-fallback]").forEach((control) => {
+          control.addEventListener("click", (event) => {
+            if (document.referrer) {
+              const previous = new URL(document.referrer, window.location.href);
+              if (previous.origin === window.location.origin && window.history.length > 1) {
+                event.preventDefault();
+                window.history.back();
+              }
+            }
+          });
+        });
+      </script>
+    {% endif %}
   </body>
 </html>
