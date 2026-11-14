@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 
 
 class Workspace(models.Model):
@@ -24,6 +25,24 @@ class Workspace(models.Model):
         if user is None:
             return False
         return getattr(user, "is_authenticated", False) and self.owner_id == user.pk
+
+    def get_assignable_users(self):
+        user_model = self._meta.get_field("owner").remote_field.model
+        return (
+            user_model.objects.filter(
+                Q(pk=self.owner_id)
+                | Q(workspace_memberships__workspace=self, workspace_memberships__is_active=True)
+            )
+            .distinct()
+            .order_by("username")
+        )
+
+    def can_assign_user(self, user):
+        if user is None or not getattr(user, "is_authenticated", False):
+            return False
+        if self.owner_id == user.pk:
+            return True
+        return self.memberships.filter(user=user, is_active=True).exists()
 
     def can_view(self, user):
         if user is None or not getattr(user, "is_authenticated", False):

@@ -125,3 +125,53 @@ def test_workspace_permission_boundaries_follow_role_matrix():
 
     assert workspace.can_view(inactive_membership.user) is False
     assert inactive_membership.can_view() is False
+
+
+@pytest.mark.django_db
+def test_assignable_users_are_distinct_and_require_owner_or_active_membership():
+    user_model = get_user_model()
+    owner = user_model.objects.create_user(
+        username="assignable-owner",
+        email="assignable-owner@example.com",
+        password="Strong-password-123!",
+    )
+    active_member = user_model.objects.create_user(
+        username="assignable-member",
+        email="assignable-member@example.com",
+        password="Strong-password-123!",
+    )
+    inactive_member = user_model.objects.create_user(
+        username="inactive-member",
+        email="inactive-member@example.com",
+        password="Strong-password-123!",
+    )
+    external_user = user_model.objects.create_user(
+        username="external-user",
+        email="external-user@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Elegibilidade", owner=owner)
+    WorkspaceMembership.objects.create(
+        workspace=workspace,
+        user=owner,
+        role=WorkspaceMembership.Role.MANAGER,
+    )
+    WorkspaceMembership.objects.create(
+        workspace=workspace,
+        user=active_member,
+        role=WorkspaceMembership.Role.READER,
+    )
+    WorkspaceMembership.objects.create(
+        workspace=workspace,
+        user=inactive_member,
+        role=WorkspaceMembership.Role.COLLABORATOR,
+        is_active=False,
+    )
+
+    assignable_ids = {user.pk for user in workspace.get_assignable_users()}
+
+    assert assignable_ids == {owner.pk, active_member.pk}
+    assert workspace.can_assign_user(owner) is True
+    assert workspace.can_assign_user(active_member) is True
+    assert workspace.can_assign_user(inactive_member) is False
+    assert workspace.can_assign_user(external_user) is False
