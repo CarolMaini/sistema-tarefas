@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "allauth.socialaccount",
     "allauth.socialaccount.providers.google",
     "apps.accounts",
+    "apps.audit",
     "apps.dashboard",
     "apps.workspaces",
     "apps.tasks",
