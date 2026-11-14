@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from apps.scheduling.models import ScheduleRule, TaskOccurrence
 from apps.tasks.models import Task, TaskAssignment, TaskExecution
-from apps.workspaces.models import Workspace
+from apps.workspaces.models import Workspace, WorkspaceMembership
 
 
 @pytest.mark.django_db
@@ -321,6 +321,94 @@ def test_occurrence_can_be_assigned_to_workspace_member(client):
 
     assert response.status_code == 302
     assert occurrence.assignments.filter(user=assignee).exists()
+
+
+@pytest.mark.django_db
+def test_workspace_manager_can_assign_occurrence_to_member(client):
+    user_model = get_user_model()
+    owner = user_model.objects.create_user(
+        username="assign-manager-owner",
+        email="assign-manager-owner@example.com",
+        password="Strong-password-123!",
+    )
+    manager = user_model.objects.create_user(
+        username="assign-manager",
+        email="assign-manager@example.com",
+        password="Strong-password-123!",
+    )
+    assignee = user_model.objects.create_user(
+        username="assign-manager-target",
+        email="assign-manager-target@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Gestor atribui", owner=owner)
+    WorkspaceMembership.objects.create(
+        workspace=workspace,
+        user=manager,
+        role=WorkspaceMembership.Role.MANAGER,
+    )
+    WorkspaceMembership.objects.create(
+        workspace=workspace,
+        user=assignee,
+        role=WorkspaceMembership.Role.COLLABORATOR,
+    )
+    task = Task.objects.create(workspace=workspace, title="Tarefa do gestor", created_by=owner)
+    occurrence = TaskOccurrence.objects.create(task=task, scheduled_date=date(2026, 10, 28))
+    client.force_login(manager)
+
+    response = client.post(
+        reverse("scheduling:occurrence-assign", args=[workspace.pk, occurrence.pk]),
+        {"user": assignee.pk},
+    )
+
+    assert response.status_code == 302
+    assert occurrence.assignments.filter(user=assignee).exists()
+
+
+@pytest.mark.django_db
+def test_collaborator_cannot_assign_occurrence_to_another_member(client):
+    user_model = get_user_model()
+    owner = user_model.objects.create_user(
+        username="assign-collab-owner",
+        email="assign-collab-owner@example.com",
+        password="Strong-password-123!",
+    )
+    collaborator = user_model.objects.create_user(
+        username="assign-collab",
+        email="assign-collab@example.com",
+        password="Strong-password-123!",
+    )
+    assignee = user_model.objects.create_user(
+        username="assign-collab-target",
+        email="assign-collab-target@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Colaborador não atribui", owner=owner)
+    WorkspaceMembership.objects.create(
+        workspace=workspace,
+        user=collaborator,
+        role=WorkspaceMembership.Role.COLLABORATOR,
+    )
+    WorkspaceMembership.objects.create(
+        workspace=workspace,
+        user=assignee,
+        role=WorkspaceMembership.Role.COLLABORATOR,
+    )
+    task = Task.objects.create(workspace=workspace, title="Tarefa sem atribuição", created_by=owner)
+    occurrence = TaskOccurrence.objects.create(task=task, scheduled_date=date(2026, 10, 29))
+    detail_url = reverse("scheduling:occurrence-detail", args=[workspace.pk, occurrence.pk])
+    client.force_login(collaborator)
+
+    detail_response = client.get(detail_url)
+    post_response = client.post(
+        reverse("scheduling:occurrence-assign", args=[workspace.pk, occurrence.pk]),
+        {"user": assignee.pk},
+    )
+
+    assert detail_response.status_code == 200
+    assert b"Atribuir respons\xc3\xa1vel" not in detail_response.content
+    assert post_response.status_code == 404
+    assert occurrence.assignments.count() == 0
 
 
 @pytest.mark.django_db

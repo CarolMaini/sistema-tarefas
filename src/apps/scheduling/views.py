@@ -100,7 +100,7 @@ class TaskOccurrenceDetailView(LoginRequiredMixin, DetailView):
             .prefetch_related("assignment__occurrence")
         )
         context["assignable_users"] = self.workspace.get_assignable_users()
-        context["can_assign_occurrence"] = self.workspace.can_create_tasks(self.request.user)
+        context["can_assign_occurrence"] = self.workspace.can_manage_space(self.request.user)
         return context
 
     def post(self, request, *args, **kwargs):
@@ -162,7 +162,7 @@ class TaskOccurrenceAssignView(LoginRequiredMixin, View):
         self.workspace = Workspace.objects.filter(pk=kwargs["workspace_id"]).first()
         if self.workspace is None or not self.workspace.can_view(request.user):
             raise Http404
-        if not self.workspace.can_create_tasks(request.user):
+        if not self.workspace.can_manage_space(request.user):
             raise Http404
         return super().dispatch(request, *args, **kwargs)
 
