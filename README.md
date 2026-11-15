@@ -140,6 +140,16 @@ python src/manage.py check
 
 Para habilitar o login com Google, configure `GOOGLE_OAUTH_CLIENT_ID` e `GOOGLE_OAUTH_CLIENT_SECRET` no arquivo `.env`, além da URL de callback `/accounts/google/login/callback/` no cliente OAuth. Sem essas credenciais, a autenticação por e-mail e senha continua disponível.
 
+## 🚀 Demonstração pública no Render
+
+A branch `render` contém a configuração de publicação no Render por meio de `render.yaml`. O ambiente de demonstração utiliza PostgreSQL, Gunicorn e WhiteNoise, e aplica as migrações durante o build.
+
+Na versão pública, o acesso é feito pelo botão **Entrar como visitante**, sem cadastro ou senha. O ambiente utiliza um usuário e um espaço de demonstração compartilhados, com dados de exemplo. Para evitar que visitantes alterem os dados uns dos outros, as requisições de escrita ficam bloqueadas durante a sessão demonstrativa.
+
+Essa configuração é exclusiva da branch `render`; a branch `main` mantém o fluxo normal de autenticação. O ambiente público é destinado à avaliação visual e funcional do projeto, não ao uso com dados pessoais ou informações reais.
+
+Para publicar, conecte o repositório ao Render e selecione a branch `render`. O Blueprint configura o serviço web e o banco PostgreSQL. O endereço público será gerado pelo Render após o primeiro deploy.
+
 ## 📚 Documentação e próximos passos
 
 O arquivo [spec.md](spec.md) é a fonte de verdade dos requisitos funcionais, regras de negócio, critérios de aceite, decisões técnicas e planejamento das fases. A pasta `docs/` contém documentação operacional complementar.
