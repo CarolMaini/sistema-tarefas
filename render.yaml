@@ -1,0 +1,30 @@
+databases:
+  - name: organizador-db
+    databaseName: organizador_tarefas
+    user: organizador
+    plan: free
+    region: ohio
+
+services:
+  - type: web
+    name: organizador-demo
+    runtime: python
+    plan: free
+    region: ohio
+    branch: render
+    buildCommand: ./build.sh
+    startCommand: gunicorn setup.wsgi:application --chdir src --bind 0.0.0.0:$PORT
+    healthCheckPath: /
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: setup.settings.prod
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: organizador-db
+          property: connectionString
+      - key: DEMO_ACCESS_ENABLED
+        value: "true"
+      - key: PYTHON_VERSION
+        value: 3.12.8
