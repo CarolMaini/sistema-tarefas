@@ -1,141 +1,151 @@
 # Organizador
 
-**Organização de atividades, planejamento de rotinas, colaboração, execução e acompanhamento em um só lugar.**
+**Uma plataforma web para organizar atividades, planejar rotinas, colaborar em espaços compartilhados e acompanhar a execução do trabalho.**
 
-O Organizador é uma aplicação web para estruturar atividades individuais e compartilhadas, planejar rotinas recorrentes, distribuir responsabilidades e acompanhar a execução do trabalho.
+O Organizador é um projeto autoral em desenvolvimento, criado para ir além de uma lista convencional de tarefas. A aplicação permite estruturar atividades individuais e compartilhadas, definir responsabilidades, planejar recorrências e registrar a execução das atividades.
 
-A proposta vai além de uma simples lista de tarefas: o sistema organiza atividades em espaços de trabalho, permite programar ocorrências, registrar execuções e acompanhar o progresso dos participantes.
+🪧 **Vitrine.Dev** | 
+--- | ---
+✨ **Nome** | Organizador
+🏷️ **Tecnologias** | Python, Django, PostgreSQL, SQLite, HTML, Tailwind CSS, JavaScript, Celery, Redis, Docker, pytest
+🚀 **URL** | [Repositório no GitHub](https://github.com/CarolMaini/sistema-tarefas) — aplicação ainda sem deploy público
+🔥 **Desafio** | Projeto autoral
 
-## Funcionalidades e estado de implementação
+## 🔨 Funcionalidades do projeto
 
-O projeto está em desenvolvimento incremental. Esta seção diferencia o que já possui implementação no código, o que está parcialmente disponível e o que permanece planejado. A existência de código não significa, por si só, homologação completa para produção.
+O projeto está em desenvolvimento incremental. Os itens abaixo distinguem funcionalidades já implementadas no código das que ainda estão em evolução ou planejamento.
 
-| Área | Estado | Observações |
-|---|---|---|
-| Fundação e infraestrutura | Implementada no código | Configurações Django, modelo de usuário, migrações, CI, testes e ferramentas de qualidade preparados. A execução completa do Docker ainda precisa ser validada. |
-| Identidade e autenticação | Parcialmente implementada | Autenticação por e-mail e senha, cadastro e redefinição de senha configurados. O login Google depende de credenciais e homologação OAuth. |
-| Espaços e colaboração | Parcialmente implementada | Espaços, membros, papéis e gerenciamento de membros possuem implementação. A cobertura completa de autorização das operações de negócio ainda está em evolução. |
-| Atividades e atribuições | Parcialmente implementadas | Criação de tarefas e atribuição de responsáveis às ocorrências implementadas. |
-| Recorrências e calendário | Parcialmente implementados | Regras semanais, quinzenais e mensais, geração de ocorrências e calendário mensal implementados. A cobertura completa dos critérios de aceite ainda precisa ser validada. |
-| Execução de atividades | Parcialmente implementada | Registro de execução com horários, comentários e anexos possui implementação; a validação funcional e operacional continua. |
-| Auditoria | Parcialmente implementada | Eventos relacionados ao gerenciamento de membros foram implementados. A cobertura dos demais eventos previstos permanece pendente. |
-| Notificações | Planejada | Central de notificações e envio assíncrono de e-mails ainda precisam ser implementados. |
-| Produção e homologação | Pendente | Controles operacionais, segurança, deploy, monitoramento e restauração de backups precisam ser validados. |
+| Funcionalidade | Estado atual |
+|---|---|
+| Cadastro, autenticação por e-mail e senha e redefinição de senha | Implementada |
+| Login social com Google | Configurado; depende de credenciais OAuth e homologação |
+| Espaços de trabalho, membros e papéis | Parcialmente implementada |
+| Criação de atividades e atribuição de responsáveis às ocorrências | Parcialmente implementada |
+| Recorrências semanais, quinzenais e mensais | Implementada no código; critérios de aceite ainda precisam de validação completa |
+| Geração de ocorrências e calendário mensal | Implementada no código; validação funcional em andamento |
+| Registro de execução, horários, comentários e anexos | Parcialmente implementada |
+| Auditoria de alterações | Parcialmente implementada |
+| Central de notificações e envio assíncrono de e-mails | Planejada |
+| Homologação e publicação em produção | Pendente |
 
-## Tecnologias
+## ✔️ Técnicas e tecnologias utilizadas
 
-- Python 3.12
-- Django 6.1.2
-- PostgreSQL
-- SQLite para desenvolvimento local
-- Django Templates, HTML, Tailwind CSS e JavaScript mínimo
-- Django Allauth para autenticação e login social
-- Celery Worker e Celery Beat
-- Redis como broker do Celery
-- Docker Compose
-- pytest e pytest-django
-- Ruff
-- GitHub Actions
+- **Python 3.12** — linguagem principal.
+- **Django 6.1.2** — framework web e organização da aplicação.
+- **PostgreSQL** — banco de dados principal previsto para produção.
+- **SQLite** — banco utilizado no desenvolvimento local.
+- **Django Templates, HTML e Tailwind CSS** — camada de apresentação.
+- **JavaScript** — interações pontuais no front-end.
+- **Django Allauth** — autenticação e integração com login social.
+- **Celery e Redis** — infraestrutura preparada para processamento assíncrono e tarefas agendadas.
+- **Docker Compose** — orquestração do ambiente local.
+- **pytest e pytest-django** — testes automatizados.
+- **Ruff** — análise estática e padronização do código.
+- **GitHub Actions** — automação de verificações de qualidade.
 
-A arquitetura utiliza um monólito modular Django, com separação de responsabilidades por aplicações. O PostgreSQL é o banco principal previsto para produção; o Redis transporta mensagens para o Celery e não é utilizado como banco dos dados de negócio.
-
-## Estrutura do projeto
-
-A aplicação está organizada por módulos, com responsabilidades separadas:
+A arquitetura segue o modelo de monólito modular Django, com separação de responsabilidades por aplicações:
 
 - `accounts`: identidade e autenticação.
 - `access`: permissões e controle de acesso.
 - `workspaces`: espaços de trabalho, membros e papéis.
 - `tasks`: atividades e atribuições.
-- `scheduling`: regras de recorrência, ocorrências e calendário.
+- `scheduling`: recorrências, ocorrências e calendário.
 - `notifications`: notificações.
 - `audit`: registros de auditoria.
 - `dashboard`: visão geral e acompanhamento.
 
-A estrutura detalhada e as responsabilidades de cada módulo estão documentadas em `spec.md`.
+## 📁 Acesso ao projeto
 
-## Requisitos locais
+O código-fonte está disponível publicamente no GitHub:
+
+[CarolMaini/sistema-tarefas](https://github.com/CarolMaini/sistema-tarefas)
+
+## 🛠️ Abrir e rodar o projeto
+
+### Requisitos
 
 - Python 3.12
 - pip
-- Docker + Docker Compose (opcional para execução dos serviços)
+- Docker e Docker Compose (opcionais para executar os serviços auxiliares)
 
-## Inicialização rápida
+### Execução local
 
-1. Configure o ambiente:
+1. Clone o repositório e entre na pasta do projeto:
+
+   ```bash
+   git clone https://github.com/CarolMaini/sistema-tarefas.git
+   cd sistema-tarefas
+   ```
+
+2. Crie e ative um ambiente virtual:
 
    ```bash
    python -m venv .venv
-   . .venv/bin/activate  # Linux/macOS
-   # ou .venv\\Scripts\\activate  # Windows PowerShell
+   # Linux/macOS
+   source .venv/bin/activate
+   # Windows PowerShell
+   .venv\\Scripts\\Activate.ps1
    ```
 
-2. Instale as dependências:
+3. Instale as dependências:
 
    ```bash
    python -m pip install --upgrade pip
    python -m pip install -e ".[dev]"
    ```
 
-3. Copie o arquivo de exemplo de ambiente:
+4. Copie o arquivo de exemplo de ambiente e ajuste as variáveis necessárias:
 
    ```bash
-   copy .env.example .env
+   cp .env.example .env
    ```
 
-4. Para habilitar login com Google, defina `GOOGLE_OAUTH_CLIENT_ID` e `GOOGLE_OAUTH_CLIENT_SECRET` no `.env` e configure a URL de callback `/accounts/google/login/callback/` no cliente OAuth. Sem essas credenciais, o login por e-mail continua disponível.
+   No Windows, utilize `copy .env.example .env`.
 
-5. Aplique as migrações:
+5. Aplique as migrações e inicie o servidor:
 
    ```bash
    python src/manage.py migrate
-   ```
-
-6. Inicie o servidor local:
-
-   ```bash
    python src/manage.py runserver
    ```
 
-## Docker Compose
+6. Acesse [http://127.0.0.1:8000](http://127.0.0.1:8000).
 
-Para levantar a infraestrutura completa localmente:
+### Execução com Docker Compose
+
+Com o arquivo `.env` configurado, execute:
 
 ```bash
 docker compose up --build
 ```
 
-Os serviços incluídos são:
+O ambiente define serviços para Django, PostgreSQL, Redis, Celery Worker e Celery Beat.
 
-- `django-app`
-- `postgres`
-- `redis`
-- `celery-worker`
-- `celery-beat`
+### Testes e qualidade
 
-## Testes
+Execute os testes automatizados:
 
 ```bash
 pytest
 ```
 
-## Verificação de qualidade
+Verifique a qualidade e a configuração do Django:
 
 ```bash
 ruff check .
 python src/manage.py check
 ```
 
-## Observações importantes
+### Configuração opcional do Google
 
-- O arquivo `.env` deve permanecer fora do controle de versão.
-- A configuração de produção usa valores mais restritivos e exige que `DEBUG` seja `False`.
-- O login Google depende de credenciais OAuth fornecidas fora do repositório e de homologação do fluxo.
-- A execução dos serviços Docker, a homologação de produção e a restauração de backups devem ser verificadas antes de considerar o projeto pronto para produção.
-- Funcionalidades planejadas ou parcialmente implementadas não devem ser consideradas integralmente disponíveis.
+Para habilitar o login com Google, configure `GOOGLE_OAUTH_CLIENT_ID` e `GOOGLE_OAUTH_CLIENT_SECRET` no arquivo `.env`, além da URL de callback `/accounts/google/login/callback/` no cliente OAuth. Sem essas credenciais, a autenticação por e-mail e senha continua disponível.
 
-## Documentação
+## 📚 Documentação e próximos passos
 
-O arquivo `spec.md` é a fonte de verdade para os requisitos funcionais, decisões técnicas, regras de negócio, critérios de aceite e planejamento das fases.
+O arquivo [spec.md](spec.md) é a fonte de verdade dos requisitos funcionais, regras de negócio, critérios de aceite, decisões técnicas e planejamento das fases. A pasta `docs/` contém documentação operacional complementar.
 
-Consulte também a pasta `docs/` para documentação operacional complementar.
+O projeto ainda não está publicado em produção. Funcionalidades identificadas como parciais ou planejadas não devem ser consideradas integralmente disponíveis. Antes de uma publicação, ainda são necessárias validações funcionais e operacionais, revisão de segurança, configuração de produção, monitoramento e testes de restauração de backups.
+
+---
+
+#vitrinedev
