@@ -9,7 +9,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
-from apps.scheduling.models import TaskOccurrence
+from apps.scheduling.models import ScheduleRule, TaskOccurrence
+from apps.scheduling.services import generate_occurrences
 from apps.tasks.models import Task, TaskAssignment
 from apps.workspaces.models import Workspace, WorkspaceMembership
 
@@ -91,6 +92,30 @@ def demo_login(request):
                     user=user,
                     defaults={"status": TaskAssignment.Status.PENDING},
                 )
+
+        recurring_task, _ = Task.objects.get_or_create(
+            workspace=workspace,
+            title="Acompanhar progresso do projeto",
+            defaults={
+                "description": "Uma atividade de exemplo com programação semanal.",
+                "created_by": user,
+                "status": Task.Status.ACTIVE,
+            },
+        )
+        today = timezone.localdate()
+        rule, _ = ScheduleRule.objects.get_or_create(
+            task=recurring_task,
+            frequency=ScheduleRule.Frequency.WEEKLY,
+            starts_on=today,
+            defaults={
+                "default_assignee": user,
+                "ends_on": today + timedelta(days=28),
+                "weekdays": [today.isoweekday()],
+                "timezone": "America/Sao_Paulo",
+                "created_by": user,
+            },
+        )
+        generate_occurrences(rule, today, today + timedelta(days=28))
 
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     request.session["demo_access"] = True
