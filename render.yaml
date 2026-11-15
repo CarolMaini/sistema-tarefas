@@ -12,9 +12,9 @@ services:
     plan: free
     region: ohio
     branch: render
-    buildCommand: ./build.sh
+    buildCommand: bash build.sh
     startCommand: gunicorn setup.wsgi:application --chdir src --bind 0.0.0.0:$PORT
-    healthCheckPath: /
+    healthCheckPath: /health/
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: setup.settings.prod
