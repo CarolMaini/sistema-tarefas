@@ -1,18 +1,58 @@
-﻿# Organizador de Tarefas
+# Organizador
 
-## Fase 2 — Identidade e acesso
+**Organização de atividades, planejamento de rotinas, colaboração, execução e acompanhamento em um só lugar.**
 
-O projeto usa o modelo customizado `accounts.User` e django-allauth para cadastro, autenticação por e-mail e senha, verificação de e-mail e login social com Google.
+O Organizador é uma aplicação web para estruturar atividades individuais e compartilhadas, planejar rotinas recorrentes, distribuir responsabilidades e acompanhar a execução do trabalho.
 
-## Estrutura esperada
+A proposta vai além de uma simples lista de tarefas: o sistema organiza atividades em espaços de trabalho, permite programar ocorrências, registrar execuções e acompanhar o progresso dos participantes.
 
-- `.github/` com instruções do Copilot e pipeline de CI
-- `src/` com a base do projeto Django e apps
-- `src/setup/settings/` com `base.py`, `local.py` e `prod.py`
-- `src/apps/accounts/` com o modelo customizado e testes de autenticação
-- `src/apps/access/` reservado para as permissões globais do Django; papéis por espaço serão tratados na fase de colaboração
-- `docker-compose.yml` e `Dockerfile` para infraestrutura local
-- `docs/` com documentação operacional inicial
+## Funcionalidades e estado de implementação
+
+O projeto está em desenvolvimento incremental. Esta seção diferencia o que já possui implementação no código, o que está parcialmente disponível e o que permanece planejado. A existência de código não significa, por si só, homologação completa para produção.
+
+| Área | Estado | Observações |
+|---|---|---|
+| Fundação e infraestrutura | Implementada no código | Configurações Django, modelo de usuário, migrações, CI, testes e ferramentas de qualidade preparados. A execução completa do Docker ainda precisa ser validada. |
+| Identidade e autenticação | Parcialmente implementada | Autenticação por e-mail e senha, cadastro e redefinição de senha configurados. O login Google depende de credenciais e homologação OAuth. |
+| Espaços e colaboração | Parcialmente implementada | Espaços, membros, papéis e gerenciamento de membros possuem implementação. A cobertura completa de autorização das operações de negócio ainda está em evolução. |
+| Atividades e atribuições | Parcialmente implementadas | Criação de tarefas e atribuição de responsáveis às ocorrências implementadas. |
+| Recorrências e calendário | Parcialmente implementados | Regras semanais, quinzenais e mensais, geração de ocorrências e calendário mensal implementados. A cobertura completa dos critérios de aceite ainda precisa ser validada. |
+| Execução de atividades | Parcialmente implementada | Registro de execução com horários, comentários e anexos possui implementação; a validação funcional e operacional continua. |
+| Auditoria | Parcialmente implementada | Eventos relacionados ao gerenciamento de membros foram implementados. A cobertura dos demais eventos previstos permanece pendente. |
+| Notificações | Planejada | Central de notificações e envio assíncrono de e-mails ainda precisam ser implementados. |
+| Produção e homologação | Pendente | Controles operacionais, segurança, deploy, monitoramento e restauração de backups precisam ser validados. |
+
+## Tecnologias
+
+- Python 3.12
+- Django 6.1.2
+- PostgreSQL
+- SQLite para desenvolvimento local
+- Django Templates, HTML, Tailwind CSS e JavaScript mínimo
+- Django Allauth para autenticação e login social
+- Celery Worker e Celery Beat
+- Redis como broker do Celery
+- Docker Compose
+- pytest e pytest-django
+- Ruff
+- GitHub Actions
+
+A arquitetura utiliza um monólito modular Django, com separação de responsabilidades por aplicações. O PostgreSQL é o banco principal previsto para produção; o Redis transporta mensagens para o Celery e não é utilizado como banco dos dados de negócio.
+
+## Estrutura do projeto
+
+A aplicação está organizada por módulos, com responsabilidades separadas:
+
+- `accounts`: identidade e autenticação.
+- `access`: permissões e controle de acesso.
+- `workspaces`: espaços de trabalho, membros e papéis.
+- `tasks`: atividades e atribuições.
+- `scheduling`: regras de recorrência, ocorrências e calendário.
+- `notifications`: notificações.
+- `audit`: registros de auditoria.
+- `dashboard`: visão geral e acompanhamento.
+
+A estrutura detalhada e as responsabilidades de cada módulo estão documentadas em `spec.md`.
 
 ## Requisitos locais
 
@@ -27,7 +67,7 @@ O projeto usa o modelo customizado `accounts.User` e django-allauth para cadastr
    ```bash
    python -m venv .venv
    . .venv/bin/activate  # Linux/macOS
-   # ou .venv\Scripts\activate  # Windows PowerShell
+   # ou .venv\\Scripts\\activate  # Windows PowerShell
    ```
 
 2. Instale as dependências:
@@ -90,8 +130,12 @@ python src/manage.py check
 
 - O arquivo `.env` deve permanecer fora do controle de versão.
 - A configuração de produção usa valores mais restritivos e exige que `DEBUG` seja `False`.
-- O login Google depende de credenciais OAuth fornecidas fora do repositório.
+- O login Google depende de credenciais OAuth fornecidas fora do repositório e de homologação do fluxo.
+- A execução dos serviços Docker, a homologação de produção e a restauração de backups devem ser verificadas antes de considerar o projeto pronto para produção.
+- Funcionalidades planejadas ou parcialmente implementadas não devem ser consideradas integralmente disponíveis.
 
-## Fonte de verdade
+## Documentação
 
-A arquitetura e os requisitos detalhados do projeto encontram-se em `spec.md`.
+O arquivo `spec.md` é a fonte de verdade para os requisitos funcionais, decisões técnicas, regras de negócio, critérios de aceite e planejamento das fases.
+
+Consulte também a pasta `docs/` para documentação operacional complementar.
