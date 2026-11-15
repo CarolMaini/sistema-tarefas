@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "organizador-tarefas"
 version = "0.1.0"
-description = "Organizador de Tarefas — foundation phase"
+description = "Organizador de Tarefas — Render demo deployment"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
@@ -16,6 +16,9 @@ dependencies = [
   "celery>=5.4.0,<6.0",
   "redis>=5.0.0,<6.0",
   "python-dotenv>=1.0.1,<2.0",
+  "dj-database-url>=2.2.0,<3.0",
+  "whitenoise>=6.8.0,<7.0",
+  "gunicorn>=23.0.0,<24.0",
 ]
 
 [project.optional-dependencies]
