@@ -36,7 +36,8 @@ O projeto está em desenvolvimento incremental. Os itens abaixo distinguem funci
 - **SQLite** — banco utilizado no desenvolvimento local.
 - **Django Templates, HTML e Tailwind CSS** — camada de apresentação.
 - **JavaScript** — interações pontuais no front-end.
-- **Django Allauth** — autenticação e integração com login social.
+- **Django Allauth** — autenticação tradicional e integração com login social (mantidas na branch `main`).
+- **Gunicorn e WhiteNoise** — servidor WSGI e entrega de arquivos estáticos na publicação.
 - **Celery e Redis** — infraestrutura preparada para processamento assíncrono e tarefas agendadas.
 - **Docker Compose** — orquestração do ambiente local.
 - **pytest e pytest-django** — testes automatizados.
