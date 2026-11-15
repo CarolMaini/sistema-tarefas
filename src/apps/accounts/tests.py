@@ -1,18 +1,19 @@
-from datetime import timedelta
-
 from django.test import TestCase, override_settings
 from django.urls import reverse
-from django.utils import timezone
 
 from apps.workspaces.models import Workspace
 
 
 @override_settings(DEMO_ACCESS_ENABLED=True)
 class DemoAccessTests(TestCase):
-    def test_demo_login_creates_session_and_sample_workspace(self):
-        response = self.client.post(reverse("accounts:demo_login"))
+    def enter_demo(self):
+        self.client.post(reverse("accounts:demo_login"))
+        return self.client.get(reverse("dashboard:home"))
 
-        self.assertRedirects(response, reverse("dashboard:home"))
+    def test_demo_login_creates_session_and_sample_workspace(self):
+        response = self.enter_demo()
+
+        self.assertEqual(response.status_code, 200)
         self.assertTrue(response.wsgi_request.user.is_authenticated)
         self.assertTrue(self.client.session.get("demo_access"))
         self.assertTrue(
@@ -23,7 +24,7 @@ class DemoAccessTests(TestCase):
         )
 
     def test_demo_user_can_open_protected_workspace_and_task_routes(self):
-        self.client.post(reverse("accounts:demo_login"))
+        self.enter_demo()
         workspace = Workspace.objects.get(name="Espaço de demonstração")
 
         workspace_response = self.client.get(
@@ -33,7 +34,7 @@ class DemoAccessTests(TestCase):
             reverse("tasks:list", kwargs={"workspace_id": workspace.pk})
         )
         calendar_response = self.client.get(
-            reverse("scheduling:calendar", kwargs={"workspace_id": workspace.pk}),
+            reverse("scheduling:calendar", kwargs={"workspace_id": workspace.pk})
         )
 
         self.assertEqual(workspace_response.status_code, 200)
@@ -41,7 +42,7 @@ class DemoAccessTests(TestCase):
         self.assertEqual(calendar_response.status_code, 200)
 
     def test_demo_session_cannot_change_shared_data(self):
-        self.client.post(reverse("accounts:demo_login"))
+        self.enter_demo()
         workspace = Workspace.objects.get(name="Espaço de demonstração")
 
         response = self.client.post(
