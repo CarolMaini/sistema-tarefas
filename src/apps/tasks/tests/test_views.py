@@ -62,3 +62,159 @@ def test_owner_cannot_access_tasks_in_inactive_workspace(client):
 
     assert list_response.status_code == 404
     assert create_response.status_code == 404
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("role", "allowed"),
+    [
+        (None, True),
+        ("manager", True),
+        ("collaborator", False),
+        ("reader", False),
+    ],
+)
+def test_task_update_requires_owner_or_manager(client, role, allowed):
+    user_model = get_user_model()
+    owner = user_model.objects.create_user(
+        username="task-update-owner",
+        email="task-update-owner@example.com",
+        password="Strong-password-123!",
+    )
+    actor = owner if role is None else user_model.objects.create_user(
+        username=f"task-update-{role}",
+        email=f"task-update-{role}@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Edição", owner=owner)
+    if role:
+        workspace.memberships.create(user=actor, role=role)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Título original",
+        description="Descrição original",
+        created_by=owner,
+    )
+    client.force_login(actor)
+
+    response = client.post(
+        reverse("tasks:update", kwargs={"workspace_id": workspace.pk, "task_id": task.pk}),
+        {"title": "Título atualizado", "description": "Descrição atualizada"},
+    )
+
+    if allowed:
+        assert response.status_code == 302
+        task.refresh_from_db()
+        assert task.title == "Título atualizado"
+        assert task.description == "Descrição atualizada"
+    else:
+        assert response.status_code == 404
+        task.refresh_from_db()
+        assert task.title == "Título original"
+
+
+@pytest.mark.django_db
+def test_task_update_cannot_cross_workspace_boundary(client):
+    user_model = get_user_model()
+    owner = user_model.objects.create_user(
+        username="task-boundary-owner",
+        email="task-boundary-owner@example.com",
+        password="Strong-password-123!",
+    )
+    other_owner = user_model.objects.create_user(
+        username="task-boundary-other",
+        email="task-boundary-other@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Workspace autorizado", owner=owner)
+    other_workspace = Workspace.objects.create(name="Workspace alheio", owner=other_owner)
+    task = Task.objects.create(
+        workspace=other_workspace,
+        title="Não alterar",
+        created_by=other_owner,
+    )
+    client.force_login(owner)
+
+    response = client.post(
+        reverse("tasks:update", kwargs={"workspace_id": workspace.pk, "task_id": task.pk}),
+        {"title": "Alteração indevida", "description": ""},
+    )
+
+    assert response.status_code == 404
+    task.refresh_from_db()
+    assert task.title == "Não alterar"
+
+
+@pytest.mark.django_db
+def test_owner_can_archive_task_without_deleting_history(client):
+    user = get_user_model().objects.create_user(
+        username="task-archive-owner",
+        email="task-archive-owner@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Arquivamento", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Tarefa histórica",
+        created_by=user,
+    )
+    client.force_login(user)
+
+    response = client.post(
+        reverse("tasks:archive", kwargs={"workspace_id": workspace.pk, "task_id": task.pk})
+    )
+
+    assert response.status_code == 302
+    task.refresh_from_db()
+    assert task.status == Task.Status.ARCHIVED
+    assert Task.objects.filter(pk=task.pk).exists()
+
+
+@pytest.mark.django_db
+def test_collaborator_cannot_archive_task(client):
+    user_model = get_user_model()
+    owner = user_model.objects.create_user(
+        username="task-archive-owner-2",
+        email="task-archive-owner-2@example.com",
+        password="Strong-password-123!",
+    )
+    collaborator = user_model.objects.create_user(
+        username="task-archive-collaborator",
+        email="task-archive-collaborator@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Proteção de arquivamento", owner=owner)
+    workspace.memberships.create(user=collaborator, role="collaborator")
+    task = Task.objects.create(workspace=workspace, title="Preservar", created_by=owner)
+    client.force_login(collaborator)
+
+    response = client.post(
+        reverse("tasks:archive", kwargs={"workspace_id": workspace.pk, "task_id": task.pk})
+    )
+
+    assert response.status_code == 404
+    task.refresh_from_db()
+    assert task.status == Task.Status.ACTIVE
+
+
+@pytest.mark.django_db
+def test_archived_task_cannot_be_edited(client):
+    user = get_user_model().objects.create_user(
+        username="task-archived-edit-owner",
+        email="task-archived-edit-owner@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Tarefa arquivada", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Arquivada",
+        created_by=user,
+        status=Task.Status.ARCHIVED,
+    )
+    client.force_login(user)
+
+    response = client.get(
+        reverse("tasks:update", kwargs={"workspace_id": workspace.pk, "task_id": task.pk})
+    )
+
+    assert response.status_code == 404

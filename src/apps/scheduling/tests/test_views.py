@@ -864,3 +864,35 @@ def test_execution_attachment_cannot_be_accessed_through_another_workspace(
     response = client.get(attachment_url)
 
     assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_archived_task_cannot_create_new_recurrence(client):
+    user = get_user_model().objects.create_user(
+        username="archived-recurrence-owner",
+        email="archived-recurrence-owner@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Recorrência arquivada", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Tarefa arquivada",
+        created_by=user,
+        status=Task.Status.ARCHIVED,
+    )
+    client.force_login(user)
+
+    response = client.post(
+        reverse("scheduling:create", args=[workspace.pk, task.pk]),
+        {
+            "frequency": ScheduleRule.Frequency.WEEKLY,
+            "starts_on": "2026-11-17",
+            "ends_on": "2026-11-30",
+            "weekdays": ["1", "5"],
+            "anchor_date": "2026-11-17",
+        },
+    )
+
+    assert response.status_code == 404
+    assert not ScheduleRule.objects.filter(task=task).exists()
+    assert not TaskOccurrence.objects.filter(task=task).exists()
