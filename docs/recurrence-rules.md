@@ -8,7 +8,7 @@ The scheduling module implements weekly, biweekly and monthly recurrence generat
 - **Biweekly:** uses `anchor_date` (or `starts_on` when no anchor is set) as the start of a 14-day cycle. Selected weekdays are generated relative to each cycle's anchor.
 - **Monthly:** generates an occurrence on every selected weekday that appears in each calendar month. It does not mean “the same day number” or “the nth weekday” of the month.
 
-For every frequency, generated dates are inclusive of the requested range and must not precede `starts_on` or exceed `ends_on` when an end date is configured. An empty weekday selection produces no dates in the service; the creation form requires at least one weekday.
+For every frequency, generated dates are inclusive of the requested range and must not precede `starts_on` or exceed `ends_on` when an end date is configured. The creation form requires at least one weekday. For compatibility with legacy rules, an empty weekday list passed directly to the generation service uses Saturday and Sunday (ISO weekdays 6 and 7) as the default.
 
 ## Generation and assignments
 
