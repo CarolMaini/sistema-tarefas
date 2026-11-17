@@ -116,3 +116,11 @@ class ScheduleRuleForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+    def clean(self):
+        cleaned_data = super().clean()
+        starts_on = cleaned_data.get("starts_on")
+        ends_on = cleaned_data.get("ends_on")
+        if starts_on and ends_on and ends_on < starts_on:
+            self.add_error("ends_on", "A data de término deve ser igual ou posterior à data de início.")
+        return cleaned_data
