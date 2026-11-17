@@ -62,3 +62,51 @@ def test_owner_cannot_access_tasks_in_inactive_workspace(client):
 
     assert list_response.status_code == 404
     assert create_response.status_code == 404
+
+
+@pytest.mark.parametrize(
+    ("actor_role", "is_owner", "membership_active", "expected_status"),
+    [
+        (None, True, True, 302),
+        ("manager", False, True, 302),
+        ("collaborator", False, True, 302),
+        ("reader", False, True, 404),
+        ("collaborator", False, False, 404),
+        (None, False, True, 404),
+    ],
+)
+@pytest.mark.django_db
+def test_task_creation_enforces_workspace_role_permissions(
+    client, actor_role, is_owner, membership_active, expected_status
+):
+    user_model = get_user_model()
+    owner = user_model.objects.create_user(
+        username="task-permission-owner",
+        email="task-permission-owner@example.com",
+        password="Strong-password-123!",
+    )
+    actor = owner if is_owner else user_model.objects.create_user(
+        username=f"task-actor-{actor_role or 'outsider'}-{membership_active}",
+        email=f"task-actor-{actor_role or 'outsider'}-{membership_active}@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Permissões de tarefas", owner=owner)
+    if actor_role:
+        workspace.memberships.create(
+            user=actor,
+            role=actor_role,
+            is_active=membership_active,
+        )
+    client.force_login(actor)
+
+    response = client.post(
+        reverse("tasks:create", kwargs={"workspace_id": workspace.pk}),
+        {"title": "Tarefa protegida", "description": "Teste de autorização."},
+    )
+
+    assert response.status_code == expected_status
+    if expected_status == 302:
+        task = Task.objects.get(workspace=workspace, title="Tarefa protegida")
+        assert task.created_by == actor
+    else:
+        assert not Task.objects.filter(workspace=workspace).exists()
