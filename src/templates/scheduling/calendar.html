@@ -39,7 +39,7 @@
         {% for day in week %}
           <div class="min-h-[150px] p-2 {% if day.is_weekend %}bg-orange-50/40{% endif %} {% if not day.in_month %}bg-slate-50 text-slate-400{% endif %}">
             <div class="mb-2 flex items-center justify-between">
-              <span class="text-sm font-semibold {% if day.in_month %}text-slate-800{% else %}text-slate-400{% endif %}">{{ day.date.day }}</span>
+              <span class="text-sm font-semibold {% if day.in_month %}text-slate-800{% else %}text-slate-400{% endif %}">{{ day.day_number }}</span>
               {% if day.occurrences %}
                 <span class="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-medium text-white">{{ day.occurrences|length }}</span>
               {% endif %}
