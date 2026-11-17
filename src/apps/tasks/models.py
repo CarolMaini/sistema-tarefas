@@ -166,7 +166,11 @@ class TaskExecution(models.Model):
         if self.assignment_id and self.created_by_id:
             if self.assignment.user_id != self.created_by_id:
                 raise ValidationError(
-                    {"created_by": "O registro de execução deve ser feito pelo responsável pela atribuição."}
+                    {
+                        "created_by": (
+                            "O registro de execução deve ser feito pelo responsável pela atribuição."
+                        )
+                    }
                 )
         if self.started_at and self.ended_at and self.ended_at < self.started_at:
             raise ValidationError({"ended_at": "O horário de fim deve ser posterior ao início."})
