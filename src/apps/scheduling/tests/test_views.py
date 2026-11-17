@@ -741,6 +741,9 @@ def test_recurrence_creation_rejects_end_date_before_start_date(client):
     )
 
     assert response.status_code == 200
-    assert "A data de término deve ser igual ou posterior à data de início." in response.content.decode()
+    assert (
+        "A data de término deve ser igual ou posterior à data de início."
+        in response.content.decode()
+    )
     assert not ScheduleRule.objects.filter(task=task).exists()
     assert not TaskOccurrence.objects.filter(task=task).exists()
