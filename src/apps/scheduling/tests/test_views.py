@@ -49,6 +49,34 @@ def test_workspace_calendar_view_lists_occurrences_for_the_month(client):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("query", "value"),
+    [
+        ("year", "not-a-year"),
+        ("year", "0"),
+        ("year", "10000"),
+        ("month", "not-a-month"),
+        ("month", "13"),
+    ],
+)
+def test_workspace_calendar_rejects_invalid_date_parameters(client, query, value):
+    user = get_user_model().objects.create_user(
+        username=f"invalid-calendar-{query}-{value}".replace("-", ""),
+        email=f"invalid-calendar-{query}-{value}@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Calendário inválido", owner=user)
+    client.force_login(user)
+
+    response = client.get(
+        reverse("scheduling:calendar", args=[workspace.pk]),
+        {query: value},
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
 def test_occurrence_detail_allows_own_assignment_completion(client):
     user = get_user_model().objects.create_user(
         username="occurrence-user",

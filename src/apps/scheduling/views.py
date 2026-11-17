@@ -264,10 +264,13 @@ class WorkspaceCalendarView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         today = date.today()
-        year = int(self.request.GET.get("year", today.year))
-        month = int(self.request.GET.get("month", today.month))
+        try:
+            year = int(self.request.GET.get("year", today.year))
+            month = int(self.request.GET.get("month", today.month))
+        except (TypeError, ValueError) as exc:
+            raise Http404 from exc
 
-        if not 1 <= month <= 12:
+        if not 1 <= year <= 9999 or not 1 <= month <= 12:
             raise Http404
 
         month_names = {
