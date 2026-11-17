@@ -743,3 +743,38 @@ def test_workspace_calendar_disables_navigation_beyond_supported_years(
     assert response.status_code == 200
     assert available_link in html
     assert f'aria-disabled="true">{unavailable_label}</span>' in html
+
+
+@pytest.mark.django_db
+def test_recurrence_creation_rejects_end_date_before_start_date(client):
+    user = get_user_model().objects.create_user(
+        username="invalid-recurrence-range",
+        email="invalid-recurrence-range@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Intervalo inválido", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Recorrência com intervalo inválido",
+        created_by=user,
+    )
+    client.force_login(user)
+
+    response = client.post(
+        reverse("scheduling:create", args=[workspace.pk, task.pk]),
+        {
+            "frequency": ScheduleRule.Frequency.WEEKLY,
+            "starts_on": "2026-11-20",
+            "ends_on": "2026-11-19",
+            "weekdays": ["1", "5"],
+            "anchor_date": "2026-11-20",
+        },
+    )
+
+    assert response.status_code == 200
+    assert (
+        "A data de término deve ser igual ou posterior à data de início."
+        in response.content.decode()
+    )
+    assert not ScheduleRule.objects.filter(task=task).exists()
+    assert not TaskOccurrence.objects.filter(task=task).exists()
