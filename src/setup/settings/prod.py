@@ -1,7 +1,7 @@
 import os
 
-from .base import BASE_DIR
 from .base import *  # noqa: F401,F403
+from .base import BASE_DIR
 
 DEBUG = False
 STATIC_ROOT = BASE_DIR / "staticfiles"
