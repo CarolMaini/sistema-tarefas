@@ -778,3 +778,89 @@ def test_recurrence_creation_rejects_end_date_before_start_date(client):
     )
     assert not ScheduleRule.objects.filter(task=task).exists()
     assert not TaskOccurrence.objects.filter(task=task).exists()
+
+
+@pytest.mark.django_db
+def test_inactive_workspace_member_cannot_download_execution_attachment(client, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    user_model = get_user_model()
+    owner = user_model.objects.create_user(
+        username="attachment-access-owner",
+        email="attachment-access-owner@example.com",
+        password="Strong-password-123!",
+    )
+    former_member = user_model.objects.create_user(
+        username="attachment-former-member",
+        email="attachment-former-member@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Anexo restrito", owner=owner)
+    membership = WorkspaceMembership.objects.create(
+        workspace=workspace,
+        user=former_member,
+        role=WorkspaceMembership.Role.READER,
+        is_active=False,
+    )
+    task = Task.objects.create(workspace=workspace, title="Evidência", created_by=owner)
+    occurrence = TaskOccurrence.objects.create(task=task, scheduled_date=date(2026, 11, 17))
+    assignment = occurrence.assignments.create(user=owner)
+    execution = TaskExecution.objects.create(
+        assignment=assignment,
+        created_by=owner,
+        attachment=SimpleUploadedFile(
+            "evidence.pdf",
+            b"%PDF-1.4\\nEvidence\\n%%EOF",
+            content_type="application/pdf",
+        ),
+    )
+    attachment_url = reverse(
+        "scheduling:execution-attachment",
+        args=[workspace.pk, occurrence.pk, execution.pk],
+    )
+    client.force_login(former_member)
+
+    response = client.get(attachment_url)
+
+    assert not membership.is_active
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_execution_attachment_cannot_be_accessed_through_another_workspace(
+    client, settings, tmp_path
+):
+    settings.MEDIA_ROOT = tmp_path
+    user_model = get_user_model()
+    owner = user_model.objects.create_user(
+        username="attachment-owner",
+        email="attachment-owner@example.com",
+        password="Strong-password-123!",
+    )
+    other_owner = user_model.objects.create_user(
+        username="attachment-other-owner",
+        email="attachment-other-owner@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Workspace original", owner=owner)
+    other_workspace = Workspace.objects.create(name="Outro workspace", owner=other_owner)
+    task = Task.objects.create(workspace=workspace, title="Evidência", created_by=owner)
+    occurrence = TaskOccurrence.objects.create(task=task, scheduled_date=date(2026, 11, 17))
+    assignment = occurrence.assignments.create(user=owner)
+    execution = TaskExecution.objects.create(
+        assignment=assignment,
+        created_by=owner,
+        attachment=SimpleUploadedFile(
+            "evidence.pdf",
+            b"%PDF-1.4\\nEvidence\\n%%EOF",
+            content_type="application/pdf",
+        ),
+    )
+    attachment_url = reverse(
+        "scheduling:execution-attachment",
+        args=[other_workspace.pk, occurrence.pk, execution.pk],
+    )
+    client.force_login(other_owner)
+
+    response = client.get(attachment_url)
+
+    assert response.status_code == 404
