@@ -114,10 +114,21 @@ class TaskAssignment(models.Model):
         if self.user_id != getattr(actor, "pk", None):
             raise ValueError("Only the assignee can complete this task assignment.")
 
+        completed_at = timezone.now()
+        updated = type(self).objects.filter(
+            pk=self.pk,
+            status=self.Status.PENDING,
+        ).update(
+            status=self.Status.COMPLETED,
+            completed_at=completed_at,
+            completed_by=actor,
+        )
+        if not updated:
+            raise ValueError("Only pending task assignments can be completed.")
+
         self.status = self.Status.COMPLETED
-        self.completed_at = timezone.now()
+        self.completed_at = completed_at
         self.completed_by = actor
-        self.save(update_fields=["status", "completed_at", "completed_by"])
 
     def __str__(self):
         return f"{self.user} -> {self.occurrence}"
