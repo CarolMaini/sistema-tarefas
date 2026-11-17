@@ -141,3 +141,47 @@ def test_owner_cannot_view_history_of_inactive_workspace(client):
     response = client.get(history_url(workspace, task))
 
     assert response.status_code == 404
+
+
+
+@pytest.mark.django_db
+def test_task_history_is_paginated(client):
+    owner = create_user("history-pagination-owner")
+    workspace = Workspace.objects.create(name="Histórico paginado", owner=owner)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Tarefa com muitas atividades",
+        created_by=owner,
+    )
+    for _ in range(21):
+        AuditEvent.objects.create(
+            actor=owner,
+            workspace=workspace,
+            task=task,
+            action=AuditEvent.Action.TASK_UPDATED,
+        )
+    client.force_login(owner)
+
+    first_page = client.get(history_url(workspace, task))
+    second_page = client.get(f"{history_url(workspace, task)}?page=2")
+
+    assert first_page.status_code == 200
+    assert second_page.status_code == 200
+    assert first_page.context["page_obj"].paginator.count == 21
+    assert len(first_page.context["events"]) == 20
+    assert len(second_page.context["events"]) == 1
+    assert b"Página 1 de 2" in first_page.content
+    assert b"Página 2 de 2" in second_page.content
+
+
+@pytest.mark.django_db
+def test_task_history_invalid_page_falls_back_to_first_page(client):
+    owner = create_user("history-invalid-page-owner")
+    workspace = Workspace.objects.create(name="Página inválida", owner=owner)
+    task = Task.objects.create(workspace=workspace, title="Tarefa", created_by=owner)
+    client.force_login(owner)
+
+    response = client.get(f"{history_url(workspace, task)}?page=invalid")
+
+    assert response.status_code == 200
+    assert response.context["page_obj"].number == 1
