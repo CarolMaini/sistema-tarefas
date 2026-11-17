@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
                 blank=True,
                 null=True,
                 on_delete=django.db.models.deletion.PROTECT,
-                related_name="membership_audit_events",
+                related_name="target_audit_events",
                 to=settings.AUTH_USER_MODEL,
             ),
         ),
