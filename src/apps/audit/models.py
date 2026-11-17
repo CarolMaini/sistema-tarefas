@@ -26,7 +26,7 @@ class AuditEvent(models.Model):
     target_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name="membership_audit_events",
+        related_name="target_audit_events",
         null=True,
         blank=True,
     )
