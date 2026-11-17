@@ -10,6 +10,43 @@ from apps.workspaces.models import Workspace, WorkspaceMembership
 
 
 @pytest.mark.django_db
+def test_weekly_rule_started_midweek_keeps_selected_weekdays():
+    user = get_user_model().objects.create_user(
+        username="midweek-planner",
+        email="midweek-planner@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Início no meio da semana", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Revisar planejamento",
+        created_by=user,
+    )
+    rule = ScheduleRule.objects.create(
+        task=task,
+        frequency=ScheduleRule.Frequency.WEEKLY,
+        starts_on=date(2026, 10, 8),  # Thursday
+        weekdays=[1, 5],  # Monday and Friday
+        created_by=user,
+    )
+
+    stats = generate_occurrences(rule, date(2026, 10, 8), date(2026, 10, 16))
+
+    generated_dates = list(
+        TaskOccurrence.objects.filter(task=task, schedule_rule=rule)
+        .order_by("scheduled_date")
+        .values_list("scheduled_date", flat=True)
+    )
+
+    assert stats["created"] == 3
+    assert generated_dates == [
+        date(2026, 10, 9),
+        date(2026, 10, 12),
+        date(2026, 10, 16),
+    ]
+
+
+@pytest.mark.django_db
 def test_weekly_rule_generates_occurrences_for_selected_days():
     user = get_user_model().objects.create_user(
         username="planner",

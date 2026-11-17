@@ -34,7 +34,7 @@ def _weekly_dates(rule: ScheduleRule, start_date: date, end_date: date) -> list[
     rule_ends_on = _as_date(rule.ends_on)
 
     week_start = start_date - timedelta(days=start_date.isoweekday() - 1)
-    cursor = max(week_start, rule_starts_on)
+    cursor = week_start
     result: list[date] = []
 
     while cursor <= end_date:
