@@ -35,6 +35,8 @@ class ScheduleRuleCreateView(LoginRequiredMixin, CreateView):
             raise Http404
         if self.task.workspace_id != self.workspace.pk:
             raise Http404
+        if self.task.status != Task.Status.ACTIVE:
+            raise Http404
         if not self.workspace.can_create_tasks(request.user):
             raise Http404
         return super().dispatch(request, *args, **kwargs)
