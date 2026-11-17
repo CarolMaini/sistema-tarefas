@@ -195,19 +195,21 @@ class TaskOccurrenceAssignView(LoginRequiredMixin, View):
             raise Http404 from exc
 
         try:
-            assignment, created = assign_occurrence(occurrence, assignee)
+            with transaction.atomic():
+                assignment, created = assign_occurrence(occurrence, assignee)
+                if created:
+                    AuditEvent.objects.create(
+                        actor=request.user,
+                        workspace=self.workspace,
+                        target_user=assignee,
+                        task=occurrence.task,
+                        assignment=assignment,
+                        action=AuditEvent.Action.TASK_ASSIGNMENT_CREATED,
+                    )
         except ValueError as exc:
             raise Http404 from exc
 
         if created:
-            AuditEvent.objects.create(
-                actor=request.user,
-                workspace=self.workspace,
-                target_user=assignee,
-                task=occurrence.task,
-                assignment=assignment,
-                action=AuditEvent.Action.TASK_ASSIGNMENT_CREATED,
-            )
             messages.success(request, "Responsável atribuído com sucesso.")
         else:
             messages.info(request, "Este responsável já está atribuído à ocorrência.")
