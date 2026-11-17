@@ -28,6 +28,8 @@ class Workspace(models.Model):
 
     def get_assignable_users(self):
         user_model = self._meta.get_field("owner").remote_field.model
+        if not self.is_active:
+            return user_model.objects.none()
         return (
             user_model.objects.filter(
                 Q(pk=self.owner_id)
@@ -38,21 +40,21 @@ class Workspace(models.Model):
         )
 
     def can_assign_user(self, user):
-        if user is None or not getattr(user, "is_authenticated", False):
+        if not self.is_active or user is None or not getattr(user, "is_authenticated", False):
             return False
         if self.owner_id == user.pk:
             return True
         return self.memberships.filter(user=user, is_active=True).exists()
 
     def can_view(self, user):
-        if user is None or not getattr(user, "is_authenticated", False):
+        if not self.is_active or user is None or not getattr(user, "is_authenticated", False):
             return False
         if self.is_owner(user):
             return True
         return self.memberships.filter(user=user, is_active=True).exists()
 
     def can_manage_space(self, user):
-        if user is None or not getattr(user, "is_authenticated", False):
+        if not self.is_active or user is None or not getattr(user, "is_authenticated", False):
             return False
         if self.is_owner(user):
             return True
@@ -63,7 +65,7 @@ class Workspace(models.Model):
         ).exists()
 
     def can_create_tasks(self, user):
-        if user is None or not getattr(user, "is_authenticated", False):
+        if not self.is_active or user is None or not getattr(user, "is_authenticated", False):
             return False
         if self.is_owner(user):
             return True
