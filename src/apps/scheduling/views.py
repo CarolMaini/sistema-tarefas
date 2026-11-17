@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import redirect_to_login
+from django.db import transaction
 from django.http import FileResponse, Http404
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -54,11 +55,12 @@ class ScheduleRuleCreateView(LoginRequiredMixin, CreateView):
         rule.task = self.task
         rule.created_by = self.request.user
         rule.weekdays = form.cleaned_data["weekdays"]
-        rule.save()
+        with transaction.atomic():
+            rule.save()
 
-        start_date = rule.starts_on
-        end_date = rule.ends_on or (start_date + timedelta(days=365))
-        generate_occurrences(rule, start_date, end_date)
+            start_date = rule.starts_on
+            end_date = rule.ends_on or (start_date + timedelta(days=365))
+            generate_occurrences(rule, start_date, end_date)
 
         messages.success(self.request, "Recorrência criada com sucesso.")
         return redirect(
