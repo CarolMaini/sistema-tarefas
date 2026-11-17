@@ -318,8 +318,8 @@ class WorkspaceCalendarView(LoginRequiredMixin, TemplateView):
                 )
             calendar_rows.append(row)
 
-        prev_year, prev_month = self._shift_month(year, month, -1)
-        next_year, next_month = self._shift_month(year, month, 1)
+        previous_month = self._shift_month(year, month, -1)
+        next_month = self._shift_month(year, month, 1)
 
         context.update(
             {
@@ -330,8 +330,16 @@ class WorkspaceCalendarView(LoginRequiredMixin, TemplateView):
                 "month_label": f"{month_names[month]} de {year}",
                 "year": year,
                 "month": month,
-                "previous_month": {"year": prev_year, "month": prev_month},
-                "next_month": {"year": next_year, "month": next_month},
+                "previous_month": (
+                    {"year": previous_month[0], "month": previous_month[1]}
+                    if previous_month is not None
+                    else None
+                ),
+                "next_month": (
+                    {"year": next_month[0], "month": next_month[1]}
+                    if next_month is not None
+                    else None
+                ),
                 "occurrences_total": occurrences.count(),
             }
         )
@@ -341,6 +349,8 @@ class WorkspaceCalendarView(LoginRequiredMixin, TemplateView):
     def _shift_month(year, month, delta):
         total_months = (year * 12) + (month - 1) + delta
         target_year, target_month_index = divmod(total_months, 12)
+        if not 1 <= target_year <= 9999:
+            return None
         target_month = target_month_index + 1
         return target_year, target_month
 
