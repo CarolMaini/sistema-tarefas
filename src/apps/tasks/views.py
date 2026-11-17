@@ -2,6 +2,7 @@ from datetime import date
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import redirect_to_login
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.http import Http404
 from django.shortcuts import redirect, render
@@ -67,13 +68,15 @@ class TaskAuditHistoryView(LoginRequiredMixin, View):
             .select_related("actor", "target_user", "assignment", "execution")
             .order_by("-created_at", "-pk")
         )
+        page_obj = Paginator(events, 20).get_page(request.GET.get("page"))
         return render(
             request,
             self.template_name,
             {
                 "workspace": self.workspace,
                 "task": self.task,
-                "events": events,
+                "events": page_obj.object_list,
+                "page_obj": page_obj,
             },
         )
 
