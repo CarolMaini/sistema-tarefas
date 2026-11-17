@@ -29,6 +29,7 @@
 
           <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
             <div class="flex flex-wrap items-center gap-2">
+              <a href="{% url 'tasks:history' workspace.pk task.pk %}" class="app-button app-button-secondary">Histórico</a>
               {% if task.status == "active" %}
                 <a href="{% url 'scheduling:create' workspace.pk task.pk %}" class="app-button app-button-secondary">Adicionar recorrência</a>
               {% endif %}
