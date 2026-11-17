@@ -394,7 +394,7 @@ def test_workspace_manager_can_assign_occurrence_to_member(client):
 
 
 @pytest.mark.django_db
-def test_collaborator_cannot_assign_occurrence_to_another_member(client):
+def test_collaborator_can_assign_occurrence_to_another_member(client):
     user_model = get_user_model()
     owner = user_model.objects.create_user(
         username="assign-collab-owner",
@@ -411,7 +411,7 @@ def test_collaborator_cannot_assign_occurrence_to_another_member(client):
         email="assign-collab-target@example.com",
         password="Strong-password-123!",
     )
-    workspace = Workspace.objects.create(name="Colaborador não atribui", owner=owner)
+    workspace = Workspace.objects.create(name="Colaborador atribui", owner=owner)
     WorkspaceMembership.objects.create(
         workspace=workspace,
         user=collaborator,
@@ -422,7 +422,7 @@ def test_collaborator_cannot_assign_occurrence_to_another_member(client):
         user=assignee,
         role=WorkspaceMembership.Role.COLLABORATOR,
     )
-    task = Task.objects.create(workspace=workspace, title="Tarefa sem atribuição", created_by=owner)
+    task = Task.objects.create(workspace=workspace, title="Tarefa compartilhada", created_by=owner)
     occurrence = TaskOccurrence.objects.create(task=task, scheduled_date=date(2026, 10, 29))
     detail_url = reverse("scheduling:occurrence-detail", args=[workspace.pk, occurrence.pk])
     client.force_login(collaborator)
@@ -434,10 +434,9 @@ def test_collaborator_cannot_assign_occurrence_to_another_member(client):
     )
 
     assert detail_response.status_code == 200
-    assert b"Atribuir respons\xc3\xa1vel" not in detail_response.content
-    assert post_response.status_code == 404
-    assert occurrence.assignments.count() == 0
-
+    assert "Atribuir responsável" in detail_response.content.decode()
+    assert post_response.status_code == 302
+    assert occurrence.assignments.filter(user=assignee).exists()
 
 @pytest.mark.django_db
 def test_occurrence_can_be_assigned_to_workspace_owner(client):
