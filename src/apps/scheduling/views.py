@@ -12,6 +12,7 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.views.generic import CreateView, DetailView, TemplateView, View
 
+from apps.audit.models import AuditEvent
 from apps.tasks.models import Task, TaskAssignment, TaskExecution
 from apps.workspaces.models import Workspace
 
@@ -123,7 +124,17 @@ class TaskOccurrenceDetailView(LoginRequiredMixin, DetailView):
             execution = form.save(commit=False)
             execution.assignment = assignment
             execution.created_by = request.user
-            execution.save()
+            with transaction.atomic():
+                execution.save()
+                AuditEvent.objects.create(
+                    actor=request.user,
+                    workspace=self.workspace,
+                    target_user=request.user,
+                    task=self.object.task,
+                    assignment=assignment,
+                    execution=execution,
+                    action=AuditEvent.Action.TASK_EXECUTION_CREATED,
+                )
             messages.success(request, "Registro de execução salvo.")
             return redirect(
                 "scheduling:occurrence-detail",
@@ -194,7 +205,17 @@ class TaskOccurrenceAssignView(LoginRequiredMixin, View):
             raise Http404 from exc
 
         try:
-            _, created = assign_occurrence(occurrence, assignee)
+            with transaction.atomic():
+                assignment, created = assign_occurrence(occurrence, assignee)
+                if created:
+                    AuditEvent.objects.create(
+                        actor=request.user,
+                        workspace=self.workspace,
+                        target_user=assignee,
+                        task=occurrence.task,
+                        assignment=assignment,
+                        action=AuditEvent.Action.TASK_ASSIGNMENT_CREATED,
+                    )
         except ValueError as exc:
             raise Http404 from exc
 
@@ -238,7 +259,16 @@ class TaskAssignmentCompleteView(LoginRequiredMixin, View):
             )
 
         try:
-            assignment.mark_completed(request.user)
+            with transaction.atomic():
+                assignment.mark_completed(request.user)
+                AuditEvent.objects.create(
+                    actor=request.user,
+                    workspace=self.workspace,
+                    target_user=request.user,
+                    task=assignment.occurrence.task,
+                    assignment=assignment,
+                    action=AuditEvent.Action.TASK_ASSIGNMENT_COMPLETED,
+                )
             messages.success(request, "Ação concluída com sucesso.")
         except ValueError:
             messages.error(request, "Você só pode concluir sua própria atribuição.")

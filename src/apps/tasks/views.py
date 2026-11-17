@@ -2,12 +2,14 @@ from datetime import date
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import redirect_to_login
+from django.db import transaction
 from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.views import View
 from django.views.generic import CreateView, ListView, UpdateView
 
+from apps.audit.models import AuditEvent
 from apps.workspaces.models import Workspace
 
 from .models import Task
@@ -59,7 +61,15 @@ class TaskCreateView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         form.instance.workspace = self.workspace
         form.instance.created_by = self.request.user
-        return super().form_valid(form)
+        with transaction.atomic():
+            response = super().form_valid(form)
+            AuditEvent.objects.create(
+                actor=self.request.user,
+                workspace=self.workspace,
+                task=self.object,
+                action=AuditEvent.Action.TASK_CREATED,
+            )
+        return response
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -102,12 +112,30 @@ class TaskUpdateView(TaskManagementMixin, LoginRequiredMixin, UpdateView):
     def get_queryset(self):
         return self.workspace.tasks.filter(status=Task.Status.ACTIVE)
 
+    def form_valid(self, form):
+        with transaction.atomic():
+            response = super().form_valid(form)
+            AuditEvent.objects.create(
+                actor=self.request.user,
+                workspace=self.workspace,
+                task=self.object,
+                action=AuditEvent.Action.TASK_UPDATED,
+            )
+        return response
+
 
 class TaskArchiveView(TaskManagementMixin, LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         if self.task.status != Task.Status.ARCHIVED:
-            self.task.status = Task.Status.ARCHIVED
-            self.task.save(update_fields=["status", "updated_at"])
+            with transaction.atomic():
+                self.task.status = Task.Status.ARCHIVED
+                self.task.save(update_fields=["status", "updated_at"])
+                AuditEvent.objects.create(
+                    actor=request.user,
+                    workspace=self.workspace,
+                    task=self.task,
+                    action=AuditEvent.Action.TASK_ARCHIVED,
+                )
         return redirect(self.get_success_url())
 
 
