@@ -41,3 +41,24 @@ def test_owner_can_see_tasks_in_workspace(client):
 
     assert response.status_code == 200
     assert task.title.encode() in response.content
+
+
+@pytest.mark.django_db
+def test_owner_cannot_access_tasks_in_inactive_workspace(client):
+    user = get_user_model().objects.create_user(
+        username="inactive-task-owner",
+        email="inactive-task-owner@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(
+        name="Espaço desativado",
+        owner=user,
+        is_active=False,
+    )
+    client.force_login(user)
+
+    list_response = client.get(reverse("tasks:list", kwargs={"workspace_id": workspace.pk}))
+    create_response = client.get(reverse("tasks:create", kwargs={"workspace_id": workspace.pk}))
+
+    assert list_response.status_code == 404
+    assert create_response.status_code == 404

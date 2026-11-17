@@ -13,20 +13,18 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         user = self.request.user
 
-        owned = Workspace.objects.filter(owner=user)
+        owned = Workspace.objects.filter(owner=user, is_active=True)
         member = Workspace.objects.filter(
             memberships__user=user,
             memberships__is_active=True,
+            is_active=True,
         )
         workspaces = (owned | member).distinct().order_by("name")
 
         active_workspace = None
         workspace_id = self.kwargs.get("workspace_id")
         if workspace_id:
-            active_workspace = Workspace.objects.filter(
-                pk=workspace_id,
-                is_active=True,
-            ).first()
+            active_workspace = workspaces.filter(pk=workspace_id).first()
 
         if active_workspace is None and workspaces.exists():
             active_workspace = workspaces.first()
