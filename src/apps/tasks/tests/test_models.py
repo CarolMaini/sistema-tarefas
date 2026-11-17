@@ -153,6 +153,34 @@ def test_execution_cannot_be_saved_when_end_precedes_start():
 
 
 @pytest.mark.django_db
+def test_execution_cannot_be_created_by_user_other_than_assignee():
+    user_model = get_user_model()
+    assignee = user_model.objects.create_user(
+        username="execution-assignee",
+        email="execution-assignee@example.com",
+        password="Strong-password-123!",
+    )
+    other_user = user_model.objects.create_user(
+        username="execution-outsider",
+        email="execution-outsider@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Autoria da execução", owner=assignee)
+    task = Task.objects.create(workspace=workspace, title="Tarefa", created_by=assignee)
+    occurrence = task.occurrences.create(scheduled_date="2026-11-19")
+    assignment = TaskAssignment.objects.create(occurrence=occurrence, user=assignee)
+
+    with pytest.raises(ValidationError, match="responsável pela atribuição"):
+        TaskExecution.objects.create(
+            assignment=assignment,
+            created_by=other_user,
+            comments="Tentativa de registrar execução em nome de outra pessoa.",
+        )
+
+    assert not TaskExecution.objects.filter(assignment=assignment).exists()
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     "status",
     [TaskAssignment.Status.COMPLETED, TaskAssignment.Status.CANCELLED],
