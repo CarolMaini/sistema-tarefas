@@ -221,12 +221,11 @@ class TaskAssignmentCompleteView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         assignment = TaskAssignment.objects.select_related("occurrence__task").filter(
             pk=kwargs["assignment_id"],
+            occurrence__task__workspace=self.workspace,
+            user=request.user,
+            status=TaskAssignment.Status.PENDING,
         ).first()
         if assignment is None:
-            raise Http404
-        if assignment.occurrence.task.workspace_id != self.workspace.pk:
-            raise Http404
-        if assignment.user_id != request.user.pk:
             raise Http404
         if not assignment.executions.exists():
             messages.error(request, "Registre os detalhes da execução antes de concluir.")
