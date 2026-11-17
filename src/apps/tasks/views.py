@@ -4,7 +4,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import redirect_to_login
 from django.db import transaction
 from django.http import Http404
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views import View
 from django.views.generic import CreateView, ListView, UpdateView
@@ -42,6 +42,40 @@ class TaskListView(LoginRequiredMixin, ListView):
                 scheduled_date__gte=date.today(),
             ).order_by("scheduled_date")[:3]
         return context
+
+
+class TaskAuditHistoryView(LoginRequiredMixin, View):
+    template_name = "tasks/task_audit_history.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect_to_login(request.get_full_path())
+
+        self.workspace = Workspace.objects.filter(pk=kwargs["workspace_id"]).first()
+        if self.workspace is None or not self.workspace.can_view(request.user):
+            raise Http404
+
+        self.task = self.workspace.tasks.filter(pk=kwargs["task_id"]).first()
+        if self.task is None:
+            raise Http404
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        events = (
+            AuditEvent.objects.filter(workspace=self.workspace, task=self.task)
+            .select_related("actor", "target_user", "assignment", "execution")
+            .order_by("-created_at", "-pk")
+        )
+        return render(
+            request,
+            self.template_name,
+            {
+                "workspace": self.workspace,
+                "task": self.task,
+                "events": events,
+            },
+        )
 
 
 class TaskCreateView(LoginRequiredMixin, CreateView):
@@ -141,6 +175,7 @@ class TaskArchiveView(TaskManagementMixin, LoginRequiredMixin, View):
 
 __all__ = [
     "TaskListView",
+    "TaskAuditHistoryView",
     "TaskCreateView",
     "TaskUpdateView",
     "TaskArchiveView",
