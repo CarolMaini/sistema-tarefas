@@ -34,8 +34,7 @@ def task_context():
 
 @pytest.mark.django_db
 def test_task_creation_is_audited(client, task_context):
-    user, workspace, task, _, _ = task_context
-    task.delete()
+    user, workspace, _, _, _ = task_context
     client.force_login(user)
 
     response = client.post(
