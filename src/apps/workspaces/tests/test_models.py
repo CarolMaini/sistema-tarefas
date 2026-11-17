@@ -175,3 +175,36 @@ def test_assignable_users_are_distinct_and_require_owner_or_active_membership():
     assert workspace.can_assign_user(active_member) is True
     assert workspace.can_assign_user(inactive_member) is False
     assert workspace.can_assign_user(external_user) is False
+
+
+@pytest.mark.django_db
+def test_inactive_workspace_denies_all_workspace_permissions():
+    user_model = get_user_model()
+    owner = user_model.objects.create_user(
+        username="inactive-workspace-owner",
+        email="inactive-workspace-owner@example.com",
+        password="Strong-password-123!",
+    )
+    member = user_model.objects.create_user(
+        username="inactive-workspace-member",
+        email="inactive-workspace-member@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(
+        name="Espaço desativado",
+        owner=owner,
+        is_active=False,
+    )
+    WorkspaceMembership.objects.create(
+        workspace=workspace,
+        user=member,
+        role=WorkspaceMembership.Role.MANAGER,
+    )
+
+    for user in (owner, member):
+        assert workspace.can_view(user) is False
+        assert workspace.can_manage_space(user) is False
+        assert workspace.can_create_tasks(user) is False
+        assert workspace.can_assign_user(user) is False
+
+    assert not workspace.get_assignable_users().exists()
