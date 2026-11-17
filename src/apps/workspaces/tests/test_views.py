@@ -396,3 +396,21 @@ def test_only_manager_sees_remove_member_action(client):
     assert remove_path in manager_response.content
     assert collaborator_response.status_code == 200
     assert remove_path not in collaborator_response.content
+
+
+@pytest.mark.django_db
+def test_inactive_workspace_is_hidden_and_owner_cannot_open_it(client):
+    owner = create_user("inactive-space-owner", "inactive-space-owner@example.com")
+    workspace = Workspace.objects.create(
+        name="Espaço desativado",
+        owner=owner,
+        is_active=False,
+    )
+    client.force_login(owner)
+
+    list_response = client.get(reverse("workspaces:list"))
+    detail_response = client.get(reverse("workspaces:detail", kwargs={"pk": workspace.pk}))
+
+    assert list_response.status_code == 200
+    assert b"Espaço desativado" not in list_response.content
+    assert detail_response.status_code == 404
