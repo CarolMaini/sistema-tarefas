@@ -305,15 +305,17 @@ class WorkspaceCalendarView(LoginRequiredMixin, TemplateView):
             occurrence_map[occurrence.scheduled_date].append(occurrence)
 
         calendar_rows = []
-        for week in calendar.Calendar(firstweekday=0).monthdatescalendar(year, month):
+        for week in calendar.Calendar(firstweekday=0).monthdayscalendar(year, month):
             row = []
-            for current_day in week:
+            for weekday_index, day_number in enumerate(week):
+                current_day = date(year, month, day_number) if day_number else None
                 row.append(
                     {
                         "date": current_day,
-                        "in_month": current_day.month == month,
-                        "is_weekend": current_day.weekday() >= 5,
-                        "occurrences": occurrence_map.get(current_day, []),
+                        "day_number": day_number,
+                        "in_month": day_number != 0,
+                        "is_weekend": weekday_index >= 5,
+                        "occurrences": occurrence_map.get(current_day, []) if current_day else [],
                     }
                 )
             calendar_rows.append(row)
