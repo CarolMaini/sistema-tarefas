@@ -1,6 +1,9 @@
 import pytest
+from datetime import timedelta
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError
+from django.utils import timezone
 
 from apps.tasks.models import Task, TaskAssignment, TaskExecution
 from apps.workspaces.models import Workspace
@@ -122,6 +125,30 @@ def test_assignment_cannot_be_completed_without_execution():
     assert assignment.status == TaskAssignment.Status.PENDING
     assert assignment.completed_at is None
     assert assignment.completed_by is None
+
+
+@pytest.mark.django_db
+def test_execution_cannot_be_saved_when_end_precedes_start():
+    user = get_user_model().objects.create_user(
+        username="invalid-execution-time",
+        email="invalid-execution-time@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Execução inválida", owner=user)
+    task = Task.objects.create(workspace=workspace, title="Tarefa", created_by=user)
+    occurrence = task.occurrences.create(scheduled_date="2026-11-18")
+    assignment = TaskAssignment.objects.create(occurrence=occurrence, user=user)
+    started_at = timezone.now()
+
+    with pytest.raises(ValidationError, match="posterior ao início"):
+        TaskExecution.objects.create(
+            assignment=assignment,
+            created_by=user,
+            started_at=started_at,
+            ended_at=started_at - timedelta(minutes=1),
+        )
+
+    assert not TaskExecution.objects.filter(assignment=assignment).exists()
 
 
 @pytest.mark.django_db
