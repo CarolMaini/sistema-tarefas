@@ -114,6 +114,9 @@ class TaskAssignment(models.Model):
         if self.user_id != getattr(actor, "pk", None):
             raise ValueError("Only the assignee can complete this task assignment.")
 
+        if not self.executions.exists():
+            raise ValueError("A task assignment requires an execution record before completion.")
+
         completed_at = timezone.now()
         updated = type(self).objects.filter(
             pk=self.pk,
