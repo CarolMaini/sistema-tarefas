@@ -2,7 +2,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 
-from apps.tasks.models import Task, TaskAssignment
+from apps.tasks.models import Task, TaskAssignment, TaskExecution
 from apps.workspaces.models import Workspace
 
 
@@ -58,7 +58,7 @@ def test_assignment_is_unique_per_occurrence_and_user():
 
 
 @pytest.mark.django_db
-def test_assignment_can_be_completed_only_by_assignee():
+def test_assignment_can_be_completed_only_by_assignee_after_execution():
     owner = get_user_model().objects.create_user(
         username="owner",
         email="owner@example.com",
@@ -83,6 +83,11 @@ def test_assignment_can_be_completed_only_by_assignee():
         occurrence=occurrence,
         user=assignee,
     )
+    TaskExecution.objects.create(
+        assignment=assignment,
+        created_by=assignee,
+        comments="Tickets respondidos.",
+    )
 
     assignment.mark_completed(assignee)
 
@@ -90,8 +95,34 @@ def test_assignment_can_be_completed_only_by_assignee():
     assert assignment.completed_by == assignee
     assert assignment.completed_at is not None
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Only the assignee"):
         assignment.mark_completed(owner)
+
+
+@pytest.mark.django_db
+def test_assignment_cannot_be_completed_without_execution():
+    user = get_user_model().objects.create_user(
+        username="no-execution",
+        email="no-execution@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Sem execução", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Tarefa sem registro",
+        created_by=user,
+    )
+    occurrence = task.occurrences.create(scheduled_date="2026-11-18")
+    assignment = TaskAssignment.objects.create(occurrence=occurrence, user=user)
+
+    with pytest.raises(ValueError, match="requires an execution record"):
+        assignment.mark_completed(user)
+
+    assignment.refresh_from_db()
+    assert assignment.status == TaskAssignment.Status.PENDING
+    assert assignment.completed_at is None
+    assert assignment.completed_by is None
+
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
