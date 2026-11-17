@@ -92,3 +92,35 @@ def test_assignment_can_be_completed_only_by_assignee():
 
     with pytest.raises(ValueError):
         assignment.mark_completed(owner)
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "status",
+    [TaskAssignment.Status.COMPLETED, TaskAssignment.Status.CANCELLED],
+)
+def test_inactive_assignment_cannot_be_completed_again(status):
+    user = get_user_model().objects.create_user(
+        username=f"inactive-{status}",
+        email=f"inactive-{status}@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Atribuições", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Tarefa",
+        created_by=user,
+    )
+    occurrence = task.occurrences.create(scheduled_date="2026-11-17")
+    assignment = TaskAssignment.objects.create(
+        occurrence=occurrence,
+        user=user,
+        status=status,
+    )
+    original_completed_at = assignment.completed_at
+
+    with pytest.raises(ValueError):
+        assignment.mark_completed(user)
+
+    assignment.refresh_from_db()
+    assert assignment.status == status
+    assert assignment.completed_at == original_completed_at
