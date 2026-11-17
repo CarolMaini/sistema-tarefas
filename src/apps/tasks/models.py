@@ -166,5 +166,9 @@ class TaskExecution(models.Model):
         if self.started_at and self.ended_at and self.ended_at < self.started_at:
             raise ValidationError({"ended_at": "O horário de fim deve ser posterior ao início."})
 
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
+
     def __str__(self):
         return f"Execução de {self.assignment} em {self.created_at}"
