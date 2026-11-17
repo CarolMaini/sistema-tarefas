@@ -124,7 +124,17 @@ class TaskOccurrenceDetailView(LoginRequiredMixin, DetailView):
             execution = form.save(commit=False)
             execution.assignment = assignment
             execution.created_by = request.user
-            execution.save()
+            with transaction.atomic():
+                execution.save()
+                AuditEvent.objects.create(
+                    actor=request.user,
+                    workspace=self.workspace,
+                    target_user=request.user,
+                    task=self.object.task,
+                    assignment=assignment,
+                    execution=execution,
+                    action=AuditEvent.Action.TASK_EXECUTION_CREATED,
+                )
             messages.success(request, "Registro de execução salvo.")
             return redirect(
                 "scheduling:occurrence-detail",
