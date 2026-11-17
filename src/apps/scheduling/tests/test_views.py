@@ -713,3 +713,33 @@ def test_recurrence_creation_rolls_back_rule_when_occurrence_generation_fails(
 
     assert not ScheduleRule.objects.filter(task=task).exists()
     assert not TaskOccurrence.objects.filter(task=task).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("year", "month", "available_link", "unavailable_label"),
+    [
+        (1, 1, "?year=1&month=2", "Anterior"),
+        (9999, 12, "?year=9999&month=11", "Próximo"),
+    ],
+)
+def test_workspace_calendar_disables_navigation_beyond_supported_years(
+    client, year, month, available_link, unavailable_label
+):
+    user = get_user_model().objects.create_user(
+        username=f"calendar-boundary-{year}",
+        email=f"calendar-boundary-{year}@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Limites do calendário", owner=user)
+    client.force_login(user)
+
+    response = client.get(
+        reverse("scheduling:calendar", args=[workspace.pk]),
+        {"year": year, "month": month},
+    )
+
+    html = response.content.decode()
+    assert response.status_code == 200
+    assert available_link in html
+    assert f'aria-disabled="true">{unavailable_label}</span>' in html
