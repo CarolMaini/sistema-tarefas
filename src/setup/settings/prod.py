@@ -1,8 +1,10 @@
 import os
 
-from .base import *  # noqa: F401,F403,F405
+from .base import BASE_DIR
+from .base import *  # noqa: F401,F403
 
 DEBUG = False
+STATIC_ROOT = BASE_DIR / "staticfiles"
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 ALLOWED_HOSTS = [
     host.strip()
