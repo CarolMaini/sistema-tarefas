@@ -105,6 +105,40 @@ def test_biweekly_rule_is_idempotent_and_uses_anchor_date():
 
 
 @pytest.mark.django_db
+def test_biweekly_rule_checks_weekdays_in_chronological_order():
+    user = get_user_model().objects.create_user(
+        username="biweekly-order",
+        email="biweekly-order@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Ordem quinzenal", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Verificar datas quinzenais",
+        created_by=user,
+    )
+    rule = ScheduleRule.objects.create(
+        task=task,
+        frequency=ScheduleRule.Frequency.BIWEEKLY,
+        starts_on=date(2026, 10, 7),  # Wednesday
+        anchor_date=date(2026, 10, 7),
+        weekdays=[1, 5],  # Monday and Friday
+        created_by=user,
+    )
+
+    stats = generate_occurrences(rule, date(2026, 10, 9), date(2026, 10, 10))
+
+    generated_dates = list(
+        TaskOccurrence.objects.filter(task=task, schedule_rule=rule)
+        .order_by("scheduled_date")
+        .values_list("scheduled_date", flat=True)
+    )
+
+    assert stats["created"] == 1
+    assert generated_dates == [date(2026, 10, 9)]
+
+
+@pytest.mark.django_db
 def test_monthly_rule_generates_weekend_occurrences():
     user = get_user_model().objects.create_user(
         username="month",

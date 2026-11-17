@@ -60,12 +60,14 @@ def _biweekly_dates(rule: ScheduleRule, start_date: date, end_date: date) -> lis
     rule_starts_on = _as_date(rule.starts_on)
     rule_ends_on = _as_date(rule.ends_on)
 
+    weekday_offsets = sorted(
+        (weekday - anchor_date.isoweekday()) % 7 for weekday in weekdays
+    )
     result: list[date] = []
     cycle_index = 0
     while True:
         base = anchor_date + timedelta(days=cycle_index * 14)
-        for weekday in weekdays:
-            delta = (weekday - anchor_date.isoweekday()) % 7
+        for delta in weekday_offsets:
             candidate = base + timedelta(days=delta)
             if candidate < start_date:
                 continue
