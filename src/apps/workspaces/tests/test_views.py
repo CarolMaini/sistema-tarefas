@@ -412,5 +412,5 @@ def test_inactive_workspace_is_hidden_and_owner_cannot_open_it(client):
     detail_response = client.get(reverse("workspaces:detail", kwargs={"pk": workspace.pk}))
 
     assert list_response.status_code == 200
-    assert b"Espaço desativado" not in list_response.content
+    assert "Espaço desativado".encode() not in list_response.content
     assert detail_response.status_code == 404
