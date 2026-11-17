@@ -46,11 +46,17 @@ class ScheduleRule(models.Model):
 
         if self.starts_on and self.ends_on and self.ends_on < self.starts_on:
             raise ValidationError(
-                {"ends_on": "A data de término deve ser igual ou posterior à data de início."}
+                {
+                    "ends_on": (
+                        "A data de término deve ser igual ou posterior à data de início."
+                    )
+                }
             )
 
         if not isinstance(self.weekdays, list):
-            raise ValidationError({"weekdays": "Os dias da semana devem ser informados em uma lista."})
+            raise ValidationError(
+                {"weekdays": "Os dias da semana devem ser informados em uma lista."}
+            )
 
         invalid_weekdays = [
             day
@@ -59,7 +65,11 @@ class ScheduleRule(models.Model):
         ]
         if invalid_weekdays:
             raise ValidationError(
-                {"weekdays": "Os dias da semana devem ser números inteiros entre 1 e 7."}
+                {
+                    "weekdays": (
+                        "Os dias da semana devem ser números inteiros entre 1 e 7."
+                    )
+                }
             )
 
     def save(self, *args, **kwargs):
