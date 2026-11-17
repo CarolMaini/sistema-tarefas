@@ -1,6 +1,7 @@
 import uuid
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -39,6 +40,31 @@ class ScheduleRule(models.Model):
         related_name="created_schedule_rules",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        super().clean()
+
+        if self.starts_on and self.ends_on and self.ends_on < self.starts_on:
+            raise ValidationError(
+                {"ends_on": "A data de término deve ser igual ou posterior à data de início."}
+            )
+
+        if not isinstance(self.weekdays, list):
+            raise ValidationError({"weekdays": "Os dias da semana devem ser informados em uma lista."})
+
+        invalid_weekdays = [
+            day
+            for day in self.weekdays
+            if isinstance(day, bool) or not isinstance(day, int) or not 1 <= day <= 7
+        ]
+        if invalid_weekdays:
+            raise ValidationError(
+                {"weekdays": "Os dias da semana devem ser números inteiros entre 1 e 7."}
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Regra de recorrência para {self.task}"
