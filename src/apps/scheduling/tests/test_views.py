@@ -644,3 +644,44 @@ def test_task_list_shows_generated_occurrences_and_allows_rule_creation(client):
     html = list_response.content.decode()
     assert "Planejamento semanal" in html
     assert "Próximas ocorrências" in html
+
+
+@pytest.mark.django_db
+def test_recurrence_creation_rolls_back_rule_when_occurrence_generation_fails(
+    client, monkeypatch
+):
+    user = get_user_model().objects.create_user(
+        username="atomic-recurrence-user",
+        email="atomic-recurrence@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Recorrência atômica", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Tarefa com geração protegida",
+        created_by=user,
+    )
+
+    def fail_generation(*args, **kwargs):
+        raise RuntimeError("Falha simulada na geração de ocorrências.")
+
+    monkeypatch.setattr(
+        "apps.scheduling.views.generate_occurrences",
+        fail_generation,
+    )
+    client.force_login(user)
+
+    with pytest.raises(RuntimeError, match="Falha simulada"):
+        client.post(
+            reverse("scheduling:create", args=[workspace.pk, task.pk]),
+            {
+                "frequency": ScheduleRule.Frequency.WEEKLY,
+                "starts_on": "2026-11-16",
+                "ends_on": "2026-11-30",
+                "weekdays": ["1", "5"],
+                "anchor_date": "2026-11-16",
+            },
+        )
+
+    assert not ScheduleRule.objects.filter(task=task).exists()
+    assert not TaskOccurrence.objects.filter(task=task).exists()
