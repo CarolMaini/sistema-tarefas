@@ -168,10 +168,8 @@ class TaskExecution(models.Model):
                 raise ValidationError(
                     {
                         "created_by": (
-                            (
-                                "O registro de execução deve ser feito pelo responsável "
-                                "pela atribuição."
-                            )
+                            "O registro de execução deve ser feito pelo responsável "
+                            "pela atribuição."
                         )
                     }
                 )

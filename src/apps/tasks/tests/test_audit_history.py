@@ -170,8 +170,8 @@ def test_task_history_is_paginated(client):
     assert first_page.context["page_obj"].paginator.count == 21
     assert len(first_page.context["events"]) == 20
     assert len(second_page.context["events"]) == 1
-    assert b"Página 1 de 2" in first_page.content
-    assert b"Página 2 de 2" in second_page.content
+    assert "Página 1 de 2".encode() in first_page.content
+    assert "Página 2 de 2".encode() in second_page.content
 
 
 @pytest.mark.django_db
