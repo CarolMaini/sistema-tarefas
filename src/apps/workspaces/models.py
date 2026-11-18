@@ -31,16 +31,25 @@ class Workspace(models.Model):
         if not self.is_active:
             return user_model.objects.none()
         return (
-            user_model.objects.filter(
+            user_model.objects.filter(is_active=True)
+            .filter(
                 Q(pk=self.owner_id)
-                | Q(workspace_memberships__workspace=self, workspace_memberships__is_active=True)
+                | Q(
+                    workspace_memberships__workspace=self,
+                    workspace_memberships__is_active=True,
+                )
             )
             .distinct()
             .order_by("username")
         )
 
     def can_assign_user(self, user):
-        if not self.is_active or user is None or not getattr(user, "is_authenticated", False):
+        if (
+            not self.is_active
+            or user is None
+            or not getattr(user, "is_authenticated", False)
+            or not getattr(user, "is_active", False)
+        ):
             return False
         if self.owner_id == user.pk:
             return True
