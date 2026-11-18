@@ -56,6 +56,20 @@ def test_schedule_rule_rejects_invalid_weekday_values_on_save(
 
 
 @pytest.mark.django_db
+def test_schedule_rule_rejects_unsupported_frequency_on_save(schedule_rule_context):
+    with pytest.raises(ValidationError, match="frequency"):
+        ScheduleRule.objects.create(
+            task=schedule_rule_context["task"],
+            frequency="yearly",
+            starts_on=date(2026, 11, 17),
+            weekdays=[1, 5],
+            created_by=schedule_rule_context["user"],
+        )
+
+    assert not ScheduleRule.objects.filter(task=schedule_rule_context["task"]).exists()
+
+
+@pytest.mark.django_db
 def test_schedule_rule_accepts_empty_weekdays_for_legacy_default_behavior(
     schedule_rule_context,
 ):
