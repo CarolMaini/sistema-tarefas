@@ -22,8 +22,8 @@
 
 ## Assign Occurrence
 
-- **Permission**: Only the workspace owner or an active workspace manager can manually assign an occurrence to another person. Collaborators may create tasks but cannot assign occurrence responsibilities.
-- **Enforcement**: Hide the assignment form from collaborators and reject direct POST attempts server-side without creating an assignment.
+- **Permission**: The workspace owner, an active workspace manager, or an active collaborator can manually assign an occurrence to the workspace owner or another active workspace member. Readers and inactive members cannot assign occurrence responsibilities.
+- **Enforcement**: Hide the assignment form from readers and inactive members, and reject their direct POST attempts server-side without creating an assignment. Validate the actor's permission and the assignee's active membership on the server; form options are not a security boundary.
 
 ## Back Control
 
