@@ -34,7 +34,10 @@ class Workspace(models.Model):
             user_model.objects.filter(is_active=True)
             .filter(
                 Q(pk=self.owner_id)
-                | Q(workspace_memberships__workspace=self, workspace_memberships__is_active=True)
+                | Q(
+                    workspace_memberships__workspace=self,
+                    workspace_memberships__is_active=True,
+                )
             )
             .distinct()
             .order_by("username")
