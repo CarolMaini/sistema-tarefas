@@ -249,3 +249,28 @@ def test_deactivated_account_loses_all_workspace_permissions():
         assert workspace.can_manage_space(user) is False
         assert workspace.can_create_tasks(user) is False
         assert workspace.can_assign_user(user) is False
+
+
+@pytest.mark.django_db
+def test_inactive_membership_user_has_no_membership_permissions():
+    user = get_user_model().objects.create_user(
+        username="inactive-membership-user",
+        email="inactive-membership-user@example.com",
+        password="Strong-password-123!",
+        is_active=False,
+    )
+    owner = get_user_model().objects.create_user(
+        username="membership-owner",
+        email="membership-owner@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Membership permissions", owner=owner)
+    membership = WorkspaceMembership.objects.create(
+        workspace=workspace,
+        user=user,
+        role=WorkspaceMembership.Role.MANAGER,
+    )
+
+    assert membership.can_view() is False
+    assert membership.can_manage_space() is False
+    assert membership.can_create_tasks() is False
