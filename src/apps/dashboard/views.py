@@ -1,8 +1,11 @@
-from datetime import date
+from datetime import timedelta
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.utils import timezone
 from django.views.generic import TemplateView
 
+from apps.scheduling.models import TaskOccurrence
+from apps.tasks.models import TaskAssignment
 from apps.workspaces.models import Workspace
 
 
@@ -29,10 +32,37 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         if active_workspace is None and workspaces.exists():
             active_workspace = workspaces.first()
 
-        context["workspaces"] = workspaces
-        context["active_workspace"] = active_workspace
-        context["pending_tasks"] = 0
-        context["upcoming_occurrences"] = 0
-        context["today"] = date.today()
-        context["user_name"] = user.get_full_name() or user.username
+        today = timezone.localdate()
+        pending_assignments = (
+            TaskAssignment.objects.filter(
+                user=user,
+                status=TaskAssignment.Status.PENDING,
+                occurrence__task__workspace__in=workspaces,
+            )
+            .select_related(
+                "occurrence",
+                "occurrence__task",
+                "occurrence__task__workspace",
+            )
+        )
+        upcoming_assignments = pending_assignments.filter(
+            occurrence__status=TaskOccurrence.Status.OPEN,
+            occurrence__scheduled_date__gte=today,
+            occurrence__scheduled_date__lte=today + timedelta(days=7),
+        ).order_by(
+            "occurrence__scheduled_date",
+            "occurrence__task__title",
+        )
+
+        context.update(
+            {
+                "workspaces": workspaces,
+                "active_workspace": active_workspace,
+                "pending_tasks": pending_assignments.count(),
+                "upcoming_occurrences": upcoming_assignments.count(),
+                "upcoming_assignments": upcoming_assignments[:10],
+                "today": today,
+                "user_name": user.get_full_name() or user.username,
+            }
+        )
         return context
