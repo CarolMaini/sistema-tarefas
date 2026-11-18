@@ -936,3 +936,23 @@ def test_assignment_completion_rejects_mismatched_occurrence_in_url(client):
     assert response.status_code == 404
     assignment.refresh_from_db()
     assert assignment.status == TaskAssignment.Status.PENDING
+
+
+
+@pytest.mark.django_db
+def test_workspace_calendar_uses_configured_local_date(client, monkeypatch):
+    user = get_user_model().objects.create_user(
+        username="calendar-local-date",
+        email="calendar-local-date@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Calendário no fuso local", owner=user)
+    monkeypatch.setattr("apps.scheduling.views.timezone.localdate", lambda: date(2026, 10, 1))
+    client.force_login(user)
+
+    response = client.get(reverse("scheduling:calendar", args=[workspace.pk]))
+
+    assert response.status_code == 200
+    assert response.context["year"] == 2026
+    assert response.context["month"] == 10
+    assert response.context["month_label"] == "Outubro de 2026"
