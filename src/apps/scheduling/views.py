@@ -10,6 +10,7 @@ from django.db import transaction
 from django.http import FileResponse, Http404
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils import timezone
 from django.views.generic import CreateView, DetailView, TemplateView, View
 
 from apps.audit.models import AuditEvent
@@ -295,7 +296,7 @@ class WorkspaceCalendarView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        today = date.today()
+        today = timezone.localdate()
         try:
             year = int(self.request.GET.get("year", today.year))
             month = int(self.request.GET.get("month", today.month))
