@@ -32,6 +32,9 @@ jobs:
       - name: Run Django checks
         run: python src/manage.py check --settings=setup.settings.local
 
+      - name: Check for missing migrations
+        run: python src/manage.py makemigrations --check --dry-run --settings=setup.settings.local
+
       - name: Run tests
         env:
           USE_SQLITE_FOR_TESTS: "1"
