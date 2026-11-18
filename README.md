@@ -54,6 +54,22 @@ A arquitetura segue o modelo de monólito modular Django, com separação de res
 - `audit`: registros de auditoria.
 - `dashboard`: visão geral e acompanhamento.
 
+## 🧪 Destaques técnicos
+
+Além das telas e dos fluxos de organização, o projeto inclui decisões de engenharia que podem ser exploradas no código e nos testes automatizados:
+
+- **Recorrências idempotentes:** geração de ocorrências semanais, quinzenais e mensais, com proteção contra duplicidade e cobertura de limites de calendário, incluindo virada de ano e ano bissexto.
+- **Regras de autorização por espaço:** validação de pertencimento e papel do usuário, com bloqueio de acesso e atribuições para contas inativas.
+- **Execução rastreável:** registro de execuções por responsável, preservação do histórico e eventos de auditoria em operações relevantes.
+- **Validação de arquivos:** restrição de formatos e tamanho dos anexos, nomes de armazenamento aleatórios e download protegido por autenticação e autorização.
+- **Validação no nível do modelo:** regras de integridade executadas também em gravações diretas pelo ORM, com testes para cenários inválidos e legados.
+- **Integração contínua:** GitHub Actions executa Ruff, verificações do Django, validação das configurações de produção, conferência de migrações, testes automatizados, build Docker e smoke test do container.
+- **Manutenção de dependências:** Dependabot configurado para verificações semanais de Python, Docker e GitHub Actions.
+
+Consulte [docs/architecture.md](docs/architecture.md), [docs/security.md](docs/security.md) e [docs/authorization.md](docs/authorization.md) para conhecer a arquitetura, os controles e as decisões técnicas. Os detalhes de implementação e os respectivos testes estão disponíveis nas pastas `src/apps/`.
+
+> Os itens acima descrevem mecanismos presentes no código e cobertos por verificações automatizadas; não significam que a aplicação esteja hospedada ou homologada como serviço de produção.
+
 ## 📁 Acesso ao projeto
 
 O código-fonte está disponível publicamente no GitHub:
