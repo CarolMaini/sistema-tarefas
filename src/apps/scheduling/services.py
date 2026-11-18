@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 
 from django.db import transaction
 
-from apps.tasks.models import TaskAssignment
+from apps.tasks.models import Task, TaskAssignment
 
 from .models import ScheduleRule, TaskOccurrence
 
@@ -125,7 +125,7 @@ def assign_occurrence(occurrence: TaskOccurrence, user):
 
 
 def generate_occurrences(rule: ScheduleRule, start_date: date, end_date: date) -> dict[str, int]:
-    if not rule.is_active:
+    if not rule.is_active or rule.task.status != Task.Status.ACTIVE:
         return {"created": 0, "existing": 0, "ignored": 0}
 
     if start_date > end_date:
