@@ -177,7 +177,7 @@ class TaskExecution(models.Model):
             raise ValidationError({"ended_at": "O horário de fim deve ser posterior ao início."})
 
     def save(self, *args, **kwargs):
-        self.clean()
+        self.full_clean()
         return super().save(*args, **kwargs)
 
     def __str__(self):

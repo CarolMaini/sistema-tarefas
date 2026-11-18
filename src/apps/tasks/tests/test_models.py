@@ -3,10 +3,16 @@ from datetime import timedelta
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError
 from django.utils import timezone
 
-from apps.tasks.models import Task, TaskAssignment, TaskExecution
+from apps.tasks.models import (
+    MAX_EXECUTION_ATTACHMENT_SIZE,
+    Task,
+    TaskAssignment,
+    TaskExecution,
+)
 from apps.workspaces.models import Workspace
 
 
@@ -211,3 +217,57 @@ def test_inactive_assignment_cannot_be_completed_again(status):
     assignment.refresh_from_db()
     assert assignment.status == status
     assert assignment.completed_at == original_completed_at
+
+
+@pytest.mark.django_db
+def test_execution_model_rejects_oversized_attachment_on_save(tmp_path, settings):
+    settings.MEDIA_ROOT = tmp_path
+    user = get_user_model().objects.create_user(
+        username="oversized-execution",
+        email="oversized-execution@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Anexo grande", owner=user)
+    task = Task.objects.create(workspace=workspace, title="Tarefa", created_by=user)
+    occurrence = task.occurrences.create(scheduled_date="2026-11-18")
+    assignment = TaskAssignment.objects.create(occurrence=occurrence, user=user)
+
+    with pytest.raises(ValidationError, match="no máximo 10 MB"):
+        TaskExecution.objects.create(
+            assignment=assignment,
+            created_by=user,
+            attachment=SimpleUploadedFile(
+                "large.pdf",
+                b"x" * (MAX_EXECUTION_ATTACHMENT_SIZE + 1),
+                content_type="application/pdf",
+            ),
+        )
+
+    assert not TaskExecution.objects.filter(assignment=assignment).exists()
+
+
+@pytest.mark.django_db
+def test_execution_model_rejects_invalid_attachment_on_save(tmp_path, settings):
+    settings.MEDIA_ROOT = tmp_path
+    user = get_user_model().objects.create_user(
+        username="invalid-execution-file",
+        email="invalid-execution-file@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Anexo inválido", owner=user)
+    task = Task.objects.create(workspace=workspace, title="Tarefa", created_by=user)
+    occurrence = task.occurrences.create(scheduled_date="2026-11-18")
+    assignment = TaskAssignment.objects.create(occurrence=occurrence, user=user)
+
+    with pytest.raises(ValidationError, match="PDF válido"):
+        TaskExecution.objects.create(
+            assignment=assignment,
+            created_by=user,
+            attachment=SimpleUploadedFile(
+                "fake.pdf",
+                b"not a PDF",
+                content_type="application/pdf",
+            ),
+        )
+
+    assert not TaskExecution.objects.filter(assignment=assignment).exists()
