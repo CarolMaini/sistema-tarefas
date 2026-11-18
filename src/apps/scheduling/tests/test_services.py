@@ -413,3 +413,78 @@ def test_generation_does_not_assign_cancelled_occurrences():
     assert stats == {"created": 0, "existing": 1, "ignored": 1}
     assert not occurrence.assignments.exists()
 
+
+
+@pytest.mark.django_db
+def test_weekly_rule_respects_end_date_across_year_boundary():
+    user = get_user_model().objects.create_user(
+        username="year-boundary-weekly",
+        email="year-boundary-weekly@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Virada do ano", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Planejamento de fim de ano",
+        created_by=user,
+    )
+    rule = ScheduleRule.objects.create(
+        task=task,
+        frequency=ScheduleRule.Frequency.WEEKLY,
+        starts_on=date(2026, 12, 28),  # Monday
+        ends_on=date(2027, 1, 4),  # Monday
+        weekdays=[1],
+        created_by=user,
+    )
+
+    stats = generate_occurrences(rule, date(2026, 12, 28), date(2027, 1, 11))
+
+    generated_dates = list(
+        TaskOccurrence.objects.filter(task=task, schedule_rule=rule)
+        .order_by("scheduled_date")
+        .values_list("scheduled_date", flat=True)
+    )
+
+    assert stats["created"] == 2
+    assert generated_dates == [date(2026, 12, 28), date(2027, 1, 4)]
+
+
+@pytest.mark.django_db
+def test_monthly_rule_generates_february_29_in_leap_year():
+    user = get_user_model().objects.create_user(
+        username="leap-year-monthly",
+        email="leap-year-monthly@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Ano bissexto", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Revisão de fevereiro",
+        created_by=user,
+    )
+    rule = ScheduleRule.objects.create(
+        task=task,
+        frequency=ScheduleRule.Frequency.MONTHLY,
+        starts_on=date(2028, 2, 1),
+        ends_on=date(2028, 2, 29),
+        weekdays=[2],  # Tuesday; February 29, 2028 is a Tuesday.
+        created_by=user,
+    )
+
+    stats = generate_occurrences(rule, date(2028, 2, 1), date(2028, 2, 29))
+
+    generated_dates = list(
+        TaskOccurrence.objects.filter(task=task, schedule_rule=rule)
+        .order_by("scheduled_date")
+        .values_list("scheduled_date", flat=True)
+    )
+
+    assert stats["created"] == 5
+    assert date(2028, 2, 29) in generated_dates
+    assert generated_dates == [
+        date(2028, 2, 1),
+        date(2028, 2, 8),
+        date(2028, 2, 15),
+        date(2028, 2, 22),
+        date(2028, 2, 29),
+    ]
