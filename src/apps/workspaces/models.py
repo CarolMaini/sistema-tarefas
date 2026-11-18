@@ -139,19 +139,19 @@ class WorkspaceMembership(models.Model):
         ]
 
     def can_view(self):
-        return self.is_active and self.role in {
+        return self.is_active and self.user.is_active and self.role in {
             self.Role.MANAGER,
             self.Role.COLLABORATOR,
             self.Role.READER,
         }
 
     def can_manage_space(self):
-        return self.is_active and (
+        return self.is_active and self.user.is_active and (
             self.role == self.Role.MANAGER or self.workspace.owner_id == self.user_id
         )
 
     def can_create_tasks(self):
-        return self.is_active and self.role in {
+        return self.is_active and self.user.is_active and self.role in {
             self.Role.MANAGER,
             self.Role.COLLABORATOR,
         }
