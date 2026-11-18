@@ -8,7 +8,7 @@ O Organizador é um projeto autoral em desenvolvimento, criado para ir além de 
 --- | ---
 ✨ **Nome** | Organizador
 🏷️ **Tecnologias** | Python, Django, PostgreSQL, SQLite, HTML, Tailwind CSS, JavaScript, Celery, Redis, Docker, pytest
-🚀 **URL** | [Repositório no GitHub](https://github.com/CarolMaini/sistema-tarefas) — aplicação ainda sem deploy público
+🚀 **Demonstração** | [Acessar aplicação publicada no Render](https://organizador-demo.onrender.com) · [Código-fonte no GitHub](https://github.com/CarolMaini/sistema-tarefas)
 🔥 **Desafio** | Projeto autoral
 
 ## 🔨 Funcionalidades do projeto
@@ -26,7 +26,15 @@ O projeto está em desenvolvimento incremental. Os itens abaixo distinguem funci
 | Registro de execução, horários, comentários e anexos | Parcialmente implementada |
 | Auditoria de alterações | Parcialmente implementada |
 | Central de notificações e envio assíncrono de e-mails | Planejada |
-| Homologação e publicação em produção | Pendente |
+| Demonstração pública no Render (branch `render`) | Publicada; ambiente demonstrativo, não destinado a dados reais |
+
+## 🚀 Demonstração pública
+
+A aplicação está publicada no Render em [organizador-demo.onrender.com](https://organizador-demo.onrender.com). A publicação é mantida separadamente na branch `render`, que contém o Blueprint `render.yaml` e a configuração específica do ambiente demonstrativo.
+
+A demonstração oferece acesso pelo botão **Entrar como visitante**, com dados compartilhados de exemplo e bloqueio de operações de escrita para proteger a experiência dos visitantes. A branch `main` permanece como linha principal de desenvolvimento.
+
+> O ambiente publicado é destinado à demonstração e avaliação do projeto. Não utilize dados pessoais, confidenciais ou informações reais. A publicação pública não significa homologação para operação produtiva com usuários e dados reais.
 
 ## ✔️ Técnicas e tecnologias utilizadas
 
@@ -160,7 +168,7 @@ Para habilitar o login com Google, configure `GOOGLE_OAUTH_CLIENT_ID` e `GOOGLE_
 
 O arquivo [spec.md](spec.md) é a fonte de verdade dos requisitos funcionais, regras de negócio, critérios de aceite, decisões técnicas e planejamento das fases. A pasta `docs/` contém documentação operacional complementar.
 
-O projeto ainda não está publicado em produção. Funcionalidades identificadas como parciais ou planejadas não devem ser consideradas integralmente disponíveis. Antes de uma publicação, ainda são necessárias validações funcionais e operacionais, revisão de segurança, configuração de produção, monitoramento e testes de restauração de backups.
+A demonstração pública está disponível no Render, enquanto a preparação para uma operação de produção com dados reais continua sujeita a validações funcionais e operacionais, revisão de segurança, monitoramento e testes de restauração de backups. Funcionalidades identificadas como parciais ou planejadas não devem ser consideradas integralmente disponíveis.
 
 ---
 
