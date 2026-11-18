@@ -957,6 +957,7 @@ def test_workspace_calendar_uses_configured_local_date(client, monkeypatch):
     assert response.context["month"] == 10
     assert response.context["month_label"] == "Outubro de 2026"
 
+
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     ("task_status", "occurrence_status"),
