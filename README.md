@@ -84,7 +84,7 @@ O código-fonte está disponível publicamente no GitHub:
    # Linux/macOS
    source .venv/bin/activate
    # Windows PowerShell
-   .venv\\Scripts\\Activate.ps1
+   .venv\Scripts\Activate.ps1
    ```
 
 3. Instale as dependências:
