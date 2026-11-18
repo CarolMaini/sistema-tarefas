@@ -64,7 +64,9 @@ def test_dashboard_requires_authentication(client):
 
 
 @pytest.mark.django_db
-def test_dashboard_counts_only_current_users_pending_assignments(\n    client, dashboard_context\n):
+def test_dashboard_counts_only_current_users_pending_assignments(
+    client, dashboard_context
+):
     context = dashboard_context
     create = context["create_assignment"]
     create("Pendente", context["today"])
@@ -86,7 +88,9 @@ def test_dashboard_counts_only_current_users_pending_assignments(\n    client, d
 
 
 @pytest.mark.django_db
-def test_dashboard_excludes_inaccessible_and_inactive_workspaces(\n    client, dashboard_context\n):
+def test_dashboard_excludes_inaccessible_and_inactive_workspaces(
+    client, dashboard_context
+):
     context = dashboard_context
     outsider = get_user_model().objects.create_user(
         username="outsider",
@@ -208,7 +212,10 @@ def test_dashboard_renders_distinct_empty_states(client, dashboard_context):
 
     context["workspace"].delete()
     response_without_workspace = client.get(reverse("dashboard:home"))
-    assert (\n        "Você ainda não participa de nenhum espaço."\n        in response_without_workspace.content.decode()\n    )
+    assert (
+        "Você ainda não participa de nenhum espaço."
+        in response_without_workspace.content.decode()
+    )
 
     Workspace.objects.create(name="Espaço vazio", owner=context["user"])
     response_without_assignments = client.get(reverse("dashboard:home"))
