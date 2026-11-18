@@ -21,6 +21,7 @@ class TaskListView(LoginRequiredMixin, ListView):
     model = Task
     template_name = "tasks/task_list.html"
     context_object_name = "tasks"
+    paginate_by = 10
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
