@@ -895,3 +895,44 @@ def test_archived_task_cannot_create_new_recurrence(client):
     assert response.status_code == 404
     assert not ScheduleRule.objects.filter(task=task).exists()
     assert not TaskOccurrence.objects.filter(task=task).exists()
+
+
+@pytest.mark.django_db
+def test_assignment_completion_rejects_mismatched_occurrence_in_url(client):
+    user = get_user_model().objects.create_user(
+        username="completion-scope-user",
+        email="completion-scope@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Escopo da conclusão", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Tarefa com ocorrências distintas",
+        created_by=user,
+    )
+    assigned_occurrence = TaskOccurrence.objects.create(
+        task=task,
+        scheduled_date=date(2026, 11, 17),
+    )
+    unrelated_occurrence = TaskOccurrence.objects.create(
+        task=task,
+        scheduled_date=date(2026, 11, 18),
+    )
+    assignment = assigned_occurrence.assignments.create(user=user)
+    TaskExecution.objects.create(
+        assignment=assignment,
+        created_by=user,
+        comments="Execução registrada antes da conclusão.",
+    )
+    client.force_login(user)
+
+    response = client.post(
+        reverse(
+            "scheduling:complete-assignment",
+            args=[workspace.pk, unrelated_occurrence.pk, assignment.pk],
+        )
+    )
+
+    assert response.status_code == 404
+    assignment.refresh_from_db()
+    assert assignment.status == TaskAssignment.Status.PENDING
