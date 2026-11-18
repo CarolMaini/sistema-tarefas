@@ -19,10 +19,11 @@ class WorkspaceListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         user = self.request.user
-        owned = Workspace.objects.filter(owner=user)
+        owned = Workspace.objects.filter(owner=user, is_active=True)
         member = Workspace.objects.filter(
             memberships__user=user,
             memberships__is_active=True,
+            is_active=True,
         )
         return (owned | member).distinct().order_by("name")
 

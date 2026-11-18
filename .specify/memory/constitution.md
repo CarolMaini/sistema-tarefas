@@ -1,6 +1,6 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 -> 1.0.1 (PATCH: align the declared Python and Django versions with project configuration)
+- Version change: 1.0.1 -> 1.0.2 (PATCH: align the declared Django version with the security-updated dependency)
 - Modified principles: Arquitetura modular e simplicidade (stack baseline updated)
 - Sections added: none
 - Sections removed: none
@@ -11,7 +11,7 @@ Sync Impact Report
 ## Core Principles
 
 ### I. Arquitetura modular e simplicidade
-- O projeto MUST utilizar Python 3.12 (>=3.12,<3.13), Django 6.1.2, PostgreSQL, Django Templates,
+- O projeto MUST utilizar Python 3.12 (>=3.12,<3.13), Django 6.1.3, PostgreSQL, Django Templates,
   HTML e Tailwind CSS.
 - O projeto MUST utilizar Celery e Redis para processamento assíncrono e Docker Compose para orquestrar os serviços.
 - A aplicação MUST adotar arquitetura monolítica modular, separada em aplicações Django.
@@ -84,4 +84,4 @@ As versões MUST seguir SemVer (`MAJOR.MINOR.PATCH`): MAJOR para remoções ou r
 de princípios; MINOR para novos princípios ou expansão material das regras; PATCH para esclarecimentos
 sem alteração semântica. Alterações incompatíveis MUST registrar seus impactos e a migração necessária.
 
-**Versão**: 1.0.1 | **Ratificada**: TODO(RATIFICATION_DATE): confirmar a data original de adoção | **Última alteração**: 2026-11-14
+**Versão**: 1.0.2 | **Ratificada**: TODO(RATIFICATION_DATE): confirmar a data original de adoção | **Última alteração**: 2026-11-18

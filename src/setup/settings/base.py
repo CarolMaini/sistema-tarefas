@@ -44,7 +44,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -119,17 +118,17 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-STATIC_URL = "/static/"
-STATICFILES_DIRS = [SRC_ROOT / "static"]
-MEDIA_URL = "/media/"
-MEDIA_ROOT = PROJECT_ROOT / "media"
-
 DEMO_ACCESS_ENABLED = os.getenv("DEMO_ACCESS_ENABLED", "False").lower() in {
     "1",
     "true",
     "yes",
     "on",
 }
+
+STATIC_URL = "/static/"
+STATICFILES_DIRS = [SRC_ROOT / "static"]
+MEDIA_URL = "/media/"
+MEDIA_ROOT = PROJECT_ROOT / "media"
 
 LOGGING = {
     "version": 1,

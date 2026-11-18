@@ -8,7 +8,7 @@ O Organizador é um projeto autoral em desenvolvimento, criado para ir além de 
 --- | ---
 ✨ **Nome** | Organizador
 🏷️ **Tecnologias** | Python, Django, PostgreSQL, SQLite, HTML, Tailwind CSS, JavaScript, Celery, Redis, Docker, pytest
-🚀 **URL** | [Repositório no GitHub](https://github.com/CarolMaini/sistema-tarefas) — aplicação ainda sem deploy público
+🚀 **Demonstração** | [Acessar aplicação publicada no Render](https://organizador-demo.onrender.com) · [Código-fonte no GitHub](https://github.com/CarolMaini/sistema-tarefas)
 🔥 **Desafio** | Projeto autoral
 
 ## 🔨 Funcionalidades do projeto
@@ -26,18 +26,25 @@ O projeto está em desenvolvimento incremental. Os itens abaixo distinguem funci
 | Registro de execução, horários, comentários e anexos | Parcialmente implementada |
 | Auditoria de alterações | Parcialmente implementada |
 | Central de notificações e envio assíncrono de e-mails | Planejada |
-| Homologação e publicação em produção | Pendente |
+| Demonstração pública no Render (branch `render`) | Publicada; ambiente demonstrativo, não destinado a dados reais |
+
+## 🚀 Demonstração pública
+
+A aplicação está publicada no Render em [organizador-demo.onrender.com](https://organizador-demo.onrender.com). A publicação é mantida separadamente na branch `render`, que contém o Blueprint `render.yaml` e a configuração específica do ambiente demonstrativo.
+
+A demonstração oferece acesso pelo botão **Entrar como visitante**, com dados compartilhados de exemplo e bloqueio de operações de escrita para proteger a experiência dos visitantes. A branch `main` permanece como linha principal de desenvolvimento.
+
+> O ambiente publicado é destinado à demonstração e avaliação do projeto. Não utilize dados pessoais, confidenciais ou informações reais. A publicação pública não significa homologação para operação produtiva com usuários e dados reais.
 
 ## ✔️ Técnicas e tecnologias utilizadas
 
 - **Python 3.12** — linguagem principal.
-- **Django 6.1.2** — framework web e organização da aplicação.
+- **Django 6.1.3** — framework web e organização da aplicação.
 - **PostgreSQL** — banco de dados principal previsto para produção.
 - **SQLite** — banco utilizado no desenvolvimento local.
 - **Django Templates, HTML e Tailwind CSS** — camada de apresentação.
 - **JavaScript** — interações pontuais no front-end.
-- **Django Allauth** — autenticação tradicional e integração com login social (mantidas na branch `main`).
-- **Gunicorn e WhiteNoise** — servidor WSGI e entrega de arquivos estáticos na publicação.
+- **Django Allauth** — autenticação e integração com login social.
 - **Celery e Redis** — infraestrutura preparada para processamento assíncrono e tarefas agendadas.
 - **Docker Compose** — orquestração do ambiente local.
 - **pytest e pytest-django** — testes automatizados.
@@ -54,6 +61,22 @@ A arquitetura segue o modelo de monólito modular Django, com separação de res
 - `notifications`: notificações.
 - `audit`: registros de auditoria.
 - `dashboard`: visão geral e acompanhamento.
+
+## 🧪 Destaques técnicos
+
+Além das telas e dos fluxos de organização, o projeto inclui decisões de engenharia que podem ser exploradas no código e nos testes automatizados:
+
+- **Recorrências idempotentes:** geração de ocorrências semanais, quinzenais e mensais, com proteção contra duplicidade e cobertura de limites de calendário, incluindo virada de ano e ano bissexto.
+- **Regras de autorização por espaço:** validação de pertencimento e papel do usuário, com bloqueio de acesso e atribuições para contas inativas.
+- **Execução rastreável:** registro de execuções por responsável, preservação do histórico e eventos de auditoria em operações relevantes.
+- **Validação de arquivos:** restrição de formatos e tamanho dos anexos, nomes de armazenamento aleatórios e download protegido por autenticação e autorização.
+- **Validação no nível do modelo:** regras de integridade executadas também em gravações diretas pelo ORM, com testes para cenários inválidos e legados.
+- **Integração contínua:** GitHub Actions executa Ruff, verificações do Django, validação das configurações de produção, conferência de migrações, testes automatizados, build Docker e smoke test do container.
+- **Manutenção de dependências:** Dependabot configurado para verificações semanais de Python, Docker e GitHub Actions.
+
+Consulte [docs/architecture.md](docs/architecture.md), [docs/security.md](docs/security.md) e [docs/authorization.md](docs/authorization.md) para conhecer a arquitetura, os controles e as decisões técnicas. Os detalhes de implementação e os respectivos testes estão disponíveis nas pastas `src/apps/`.
+
+> Os itens acima descrevem mecanismos presentes no código e cobertos por verificações automatizadas; não significam que a aplicação esteja hospedada ou homologada como serviço de produção.
 
 ## 📁 Acesso ao projeto
 
@@ -85,7 +108,7 @@ O código-fonte está disponível publicamente no GitHub:
    # Linux/macOS
    source .venv/bin/activate
    # Windows PowerShell
-   .venv\\Scripts\\Activate.ps1
+   .venv\Scripts\Activate.ps1
    ```
 
 3. Instale as dependências:
@@ -141,21 +164,11 @@ python src/manage.py check
 
 Para habilitar o login com Google, configure `GOOGLE_OAUTH_CLIENT_ID` e `GOOGLE_OAUTH_CLIENT_SECRET` no arquivo `.env`, além da URL de callback `/accounts/google/login/callback/` no cliente OAuth. Sem essas credenciais, a autenticação por e-mail e senha continua disponível.
 
-## 🚀 Demonstração pública no Render
-
-A branch `render` contém a configuração de publicação no Render por meio de `render.yaml`. O ambiente de demonstração utiliza PostgreSQL, Gunicorn e WhiteNoise, e aplica as migrações durante o build.
-
-Na versão pública, o acesso é feito pelo botão **Entrar como visitante**, sem cadastro ou senha. O ambiente utiliza um usuário e um espaço de demonstração compartilhados, com dados de exemplo. Para evitar que visitantes alterem os dados uns dos outros, as requisições de escrita ficam bloqueadas durante a sessão demonstrativa.
-
-Essa configuração é exclusiva da branch `render`; a branch `main` mantém o fluxo normal de autenticação. O ambiente público é destinado à avaliação visual e funcional do projeto, não ao uso com dados pessoais ou informações reais.
-
-Para publicar, conecte o repositório ao Render e selecione a branch `render`. O Blueprint configura o serviço web e o banco PostgreSQL. O endereço público será gerado pelo Render após o primeiro deploy.
-
 ## 📚 Documentação e próximos passos
 
 O arquivo [spec.md](spec.md) é a fonte de verdade dos requisitos funcionais, regras de negócio, critérios de aceite, decisões técnicas e planejamento das fases. A pasta `docs/` contém documentação operacional complementar.
 
-O projeto ainda não está publicado em produção. Funcionalidades identificadas como parciais ou planejadas não devem ser consideradas integralmente disponíveis. Antes de uma publicação, ainda são necessárias validações funcionais e operacionais, revisão de segurança, configuração de produção, monitoramento e testes de restauração de backups.
+A demonstração pública está disponível no Render, enquanto a preparação para uma operação de produção com dados reais continua sujeita a validações funcionais e operacionais, revisão de segurança, monitoramento e testes de restauração de backups. Funcionalidades identificadas como parciais ou planejadas não devem ser consideradas integralmente disponíveis.
 
 ---
 

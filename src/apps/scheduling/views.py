@@ -6,11 +6,14 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import redirect_to_login
+from django.db import transaction
 from django.http import FileResponse, Http404
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils import timezone
 from django.views.generic import CreateView, DetailView, TemplateView, View
 
+from apps.audit.models import AuditEvent
 from apps.tasks.models import Task, TaskAssignment, TaskExecution
 from apps.workspaces.models import Workspace
 
@@ -34,6 +37,8 @@ class ScheduleRuleCreateView(LoginRequiredMixin, CreateView):
             raise Http404
         if self.task.workspace_id != self.workspace.pk:
             raise Http404
+        if self.task.status != Task.Status.ACTIVE:
+            raise Http404
         if not self.workspace.can_create_tasks(request.user):
             raise Http404
         return super().dispatch(request, *args, **kwargs)
@@ -54,11 +59,12 @@ class ScheduleRuleCreateView(LoginRequiredMixin, CreateView):
         rule.task = self.task
         rule.created_by = self.request.user
         rule.weekdays = form.cleaned_data["weekdays"]
-        rule.save()
+        with transaction.atomic():
+            rule.save()
 
-        start_date = rule.starts_on
-        end_date = rule.ends_on or (start_date + timedelta(days=365))
-        generate_occurrences(rule, start_date, end_date)
+            start_date = rule.starts_on
+            end_date = rule.ends_on or (start_date + timedelta(days=365))
+            generate_occurrences(rule, start_date, end_date)
 
         messages.success(self.request, "Recorrência criada com sucesso.")
         return redirect(
@@ -100,11 +106,17 @@ class TaskOccurrenceDetailView(LoginRequiredMixin, DetailView):
             .prefetch_related("assignment__occurrence")
         )
         context["assignable_users"] = self.workspace.get_assignable_users()
-        context["can_assign_occurrence"] = self.workspace.can_manage_space(self.request.user)
+        context["can_assign_occurrence"] = self.workspace.can_create_tasks(self.request.user)
         return context
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
+        if (
+            self.object.status != TaskOccurrence.Status.OPEN
+            or self.object.task.status != Task.Status.ACTIVE
+        ):
+            raise Http404
+
         assignment_id = request.POST.get("assignment_id")
         assignment = self.object.assignments.filter(
             pk=assignment_id,
@@ -119,7 +131,17 @@ class TaskOccurrenceDetailView(LoginRequiredMixin, DetailView):
             execution = form.save(commit=False)
             execution.assignment = assignment
             execution.created_by = request.user
-            execution.save()
+            with transaction.atomic():
+                execution.save()
+                AuditEvent.objects.create(
+                    actor=request.user,
+                    workspace=self.workspace,
+                    target_user=request.user,
+                    task=self.object.task,
+                    assignment=assignment,
+                    execution=execution,
+                    action=AuditEvent.Action.TASK_EXECUTION_CREATED,
+                )
             messages.success(request, "Registro de execução salvo.")
             return redirect(
                 "scheduling:occurrence-detail",
@@ -162,7 +184,7 @@ class TaskOccurrenceAssignView(LoginRequiredMixin, View):
         self.workspace = Workspace.objects.filter(pk=kwargs["workspace_id"]).first()
         if self.workspace is None or not self.workspace.can_view(request.user):
             raise Http404
-        if not self.workspace.can_manage_space(request.user):
+        if not self.workspace.can_create_tasks(request.user):
             raise Http404
         return super().dispatch(request, *args, **kwargs)
 
@@ -172,6 +194,11 @@ class TaskOccurrenceAssignView(LoginRequiredMixin, View):
             task__workspace=self.workspace,
         ).first()
         if occurrence is None:
+            raise Http404
+        if (
+            occurrence.status != TaskOccurrence.Status.OPEN
+            or occurrence.task.status != Task.Status.ACTIVE
+        ):
             raise Http404
 
         user_id = request.POST.get("user")
@@ -190,7 +217,17 @@ class TaskOccurrenceAssignView(LoginRequiredMixin, View):
             raise Http404 from exc
 
         try:
-            _, created = assign_occurrence(occurrence, assignee)
+            with transaction.atomic():
+                assignment, created = assign_occurrence(occurrence, assignee)
+                if created:
+                    AuditEvent.objects.create(
+                        actor=request.user,
+                        workspace=self.workspace,
+                        target_user=assignee,
+                        task=occurrence.task,
+                        assignment=assignment,
+                        action=AuditEvent.Action.TASK_ASSIGNMENT_CREATED,
+                    )
         except ValueError as exc:
             raise Http404 from exc
 
@@ -219,12 +256,14 @@ class TaskAssignmentCompleteView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         assignment = TaskAssignment.objects.select_related("occurrence__task").filter(
             pk=kwargs["assignment_id"],
+            occurrence__pk=kwargs["pk"],
+            occurrence__task__workspace=self.workspace,
+            occurrence__status=TaskOccurrence.Status.OPEN,
+            occurrence__task__status=Task.Status.ACTIVE,
+            user=request.user,
+            status=TaskAssignment.Status.PENDING,
         ).first()
         if assignment is None:
-            raise Http404
-        if assignment.occurrence.task.workspace_id != self.workspace.pk:
-            raise Http404
-        if assignment.user_id != request.user.pk:
             raise Http404
         if not assignment.executions.exists():
             messages.error(request, "Registre os detalhes da execução antes de concluir.")
@@ -235,7 +274,16 @@ class TaskAssignmentCompleteView(LoginRequiredMixin, View):
             )
 
         try:
-            assignment.mark_completed(request.user)
+            with transaction.atomic():
+                assignment.mark_completed(request.user)
+                AuditEvent.objects.create(
+                    actor=request.user,
+                    workspace=self.workspace,
+                    target_user=request.user,
+                    task=assignment.occurrence.task,
+                    assignment=assignment,
+                    action=AuditEvent.Action.TASK_ASSIGNMENT_COMPLETED,
+                )
             messages.success(request, "Ação concluída com sucesso.")
         except ValueError:
             messages.error(request, "Você só pode concluir sua própria atribuição.")
@@ -261,11 +309,14 @@ class WorkspaceCalendarView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        today = date.today()
-        year = int(self.request.GET.get("year", today.year))
-        month = int(self.request.GET.get("month", today.month))
+        today = timezone.localdate()
+        try:
+            year = int(self.request.GET.get("year", today.year))
+            month = int(self.request.GET.get("month", today.month))
+        except (TypeError, ValueError) as exc:
+            raise Http404 from exc
 
-        if not 1 <= month <= 12:
+        if not 1 <= year <= 9999 or not 1 <= month <= 12:
             raise Http404
 
         month_names = {
@@ -301,21 +352,23 @@ class WorkspaceCalendarView(LoginRequiredMixin, TemplateView):
             occurrence_map[occurrence.scheduled_date].append(occurrence)
 
         calendar_rows = []
-        for week in calendar.Calendar(firstweekday=0).monthdatescalendar(year, month):
+        for week in calendar.Calendar(firstweekday=0).monthdayscalendar(year, month):
             row = []
-            for current_day in week:
+            for weekday_index, day_number in enumerate(week):
+                current_day = date(year, month, day_number) if day_number else None
                 row.append(
                     {
                         "date": current_day,
-                        "in_month": current_day.month == month,
-                        "is_weekend": current_day.weekday() >= 5,
-                        "occurrences": occurrence_map.get(current_day, []),
+                        "day_number": day_number,
+                        "in_month": day_number != 0,
+                        "is_weekend": weekday_index >= 5,
+                        "occurrences": occurrence_map.get(current_day, []) if current_day else [],
                     }
                 )
             calendar_rows.append(row)
 
-        prev_year, prev_month = self._shift_month(year, month, -1)
-        next_year, next_month = self._shift_month(year, month, 1)
+        previous_month = self._shift_month(year, month, -1)
+        next_month = self._shift_month(year, month, 1)
 
         context.update(
             {
@@ -326,8 +379,16 @@ class WorkspaceCalendarView(LoginRequiredMixin, TemplateView):
                 "month_label": f"{month_names[month]} de {year}",
                 "year": year,
                 "month": month,
-                "previous_month": {"year": prev_year, "month": prev_month},
-                "next_month": {"year": next_year, "month": next_month},
+                "previous_month": (
+                    {"year": previous_month[0], "month": previous_month[1]}
+                    if previous_month is not None
+                    else None
+                ),
+                "next_month": (
+                    {"year": next_month[0], "month": next_month[1]}
+                    if next_month is not None
+                    else None
+                ),
                 "occurrences_total": occurrences.count(),
             }
         )
@@ -337,6 +398,8 @@ class WorkspaceCalendarView(LoginRequiredMixin, TemplateView):
     def _shift_month(year, month, delta):
         total_months = (year * 12) + (month - 1) + delta
         target_year, target_month_index = divmod(total_months, 12)
+        if not 1 <= target_year <= 9999:
+            return None
         target_month = target_month_index + 1
         return target_year, target_month
 

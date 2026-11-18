@@ -1,8 +1,18 @@
+from datetime import timedelta
+
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError
+from django.utils import timezone
 
-from apps.tasks.models import Task, TaskAssignment
+from apps.tasks.models import (
+    MAX_EXECUTION_ATTACHMENT_SIZE,
+    Task,
+    TaskAssignment,
+    TaskExecution,
+)
 from apps.workspaces.models import Workspace
 
 
@@ -58,7 +68,7 @@ def test_assignment_is_unique_per_occurrence_and_user():
 
 
 @pytest.mark.django_db
-def test_assignment_can_be_completed_only_by_assignee():
+def test_assignment_can_be_completed_only_by_assignee_after_execution():
     owner = get_user_model().objects.create_user(
         username="owner",
         email="owner@example.com",
@@ -83,6 +93,11 @@ def test_assignment_can_be_completed_only_by_assignee():
         occurrence=occurrence,
         user=assignee,
     )
+    TaskExecution.objects.create(
+        assignment=assignment,
+        created_by=assignee,
+        comments="Tickets respondidos.",
+    )
 
     assignment.mark_completed(assignee)
 
@@ -90,5 +105,169 @@ def test_assignment_can_be_completed_only_by_assignee():
     assert assignment.completed_by == assignee
     assert assignment.completed_at is not None
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Only the assignee"):
         assignment.mark_completed(owner)
+
+
+@pytest.mark.django_db
+def test_assignment_cannot_be_completed_without_execution():
+    user = get_user_model().objects.create_user(
+        username="no-execution",
+        email="no-execution@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Sem execução", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Tarefa sem registro",
+        created_by=user,
+    )
+    occurrence = task.occurrences.create(scheduled_date="2026-11-18")
+    assignment = TaskAssignment.objects.create(occurrence=occurrence, user=user)
+
+    with pytest.raises(ValueError, match="requires an execution record"):
+        assignment.mark_completed(user)
+
+    assignment.refresh_from_db()
+    assert assignment.status == TaskAssignment.Status.PENDING
+    assert assignment.completed_at is None
+    assert assignment.completed_by is None
+
+
+@pytest.mark.django_db
+def test_execution_cannot_be_saved_when_end_precedes_start():
+    user = get_user_model().objects.create_user(
+        username="invalid-execution-time",
+        email="invalid-execution-time@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Execução inválida", owner=user)
+    task = Task.objects.create(workspace=workspace, title="Tarefa", created_by=user)
+    occurrence = task.occurrences.create(scheduled_date="2026-11-18")
+    assignment = TaskAssignment.objects.create(occurrence=occurrence, user=user)
+    started_at = timezone.now()
+
+    with pytest.raises(ValidationError, match="posterior ao início"):
+        TaskExecution.objects.create(
+            assignment=assignment,
+            created_by=user,
+            started_at=started_at,
+            ended_at=started_at - timedelta(minutes=1),
+        )
+
+    assert not TaskExecution.objects.filter(assignment=assignment).exists()
+
+
+@pytest.mark.django_db
+def test_execution_cannot_be_created_by_user_other_than_assignee():
+    user_model = get_user_model()
+    assignee = user_model.objects.create_user(
+        username="execution-assignee",
+        email="execution-assignee@example.com",
+        password="Strong-password-123!",
+    )
+    other_user = user_model.objects.create_user(
+        username="execution-outsider",
+        email="execution-outsider@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Autoria da execução", owner=assignee)
+    task = Task.objects.create(workspace=workspace, title="Tarefa", created_by=assignee)
+    occurrence = task.occurrences.create(scheduled_date="2026-11-19")
+    assignment = TaskAssignment.objects.create(occurrence=occurrence, user=assignee)
+
+    with pytest.raises(ValidationError, match="responsável pela atribuição"):
+        TaskExecution.objects.create(
+            assignment=assignment,
+            created_by=other_user,
+            comments="Tentativa de registrar execução em nome de outra pessoa.",
+        )
+
+    assert not TaskExecution.objects.filter(assignment=assignment).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "status",
+    [TaskAssignment.Status.COMPLETED, TaskAssignment.Status.CANCELLED],
+)
+def test_inactive_assignment_cannot_be_completed_again(status):
+    user = get_user_model().objects.create_user(
+        username=f"inactive-{status}",
+        email=f"inactive-{status}@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Atribuições", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Tarefa",
+        created_by=user,
+    )
+    occurrence = task.occurrences.create(scheduled_date="2026-11-17")
+    assignment = TaskAssignment.objects.create(
+        occurrence=occurrence,
+        user=user,
+        status=status,
+    )
+    original_completed_at = assignment.completed_at
+
+    with pytest.raises(ValueError):
+        assignment.mark_completed(user)
+
+    assignment.refresh_from_db()
+    assert assignment.status == status
+    assert assignment.completed_at == original_completed_at
+
+
+@pytest.mark.django_db
+def test_execution_model_rejects_oversized_attachment_on_save(tmp_path, settings):
+    settings.MEDIA_ROOT = tmp_path
+    user = get_user_model().objects.create_user(
+        username="oversized-execution",
+        email="oversized-execution@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Anexo grande", owner=user)
+    task = Task.objects.create(workspace=workspace, title="Tarefa", created_by=user)
+    occurrence = task.occurrences.create(scheduled_date="2026-11-18")
+    assignment = TaskAssignment.objects.create(occurrence=occurrence, user=user)
+
+    with pytest.raises(ValidationError, match="no máximo 10 MB"):
+        TaskExecution.objects.create(
+            assignment=assignment,
+            created_by=user,
+            attachment=SimpleUploadedFile(
+                "large.pdf",
+                b"x" * (MAX_EXECUTION_ATTACHMENT_SIZE + 1),
+                content_type="application/pdf",
+            ),
+        )
+
+    assert not TaskExecution.objects.filter(assignment=assignment).exists()
+
+
+@pytest.mark.django_db
+def test_execution_model_rejects_invalid_attachment_on_save(tmp_path, settings):
+    settings.MEDIA_ROOT = tmp_path
+    user = get_user_model().objects.create_user(
+        username="invalid-execution-file",
+        email="invalid-execution-file@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Anexo inválido", owner=user)
+    task = Task.objects.create(workspace=workspace, title="Tarefa", created_by=user)
+    occurrence = task.occurrences.create(scheduled_date="2026-11-18")
+    assignment = TaskAssignment.objects.create(occurrence=occurrence, user=user)
+
+    with pytest.raises(ValidationError, match="PDF válido"):
+        TaskExecution.objects.create(
+            assignment=assignment,
+            created_by=user,
+            attachment=SimpleUploadedFile(
+                "fake.pdf",
+                b"not a PDF",
+                content_type="application/pdf",
+            ),
+        )
+
+    assert not TaskExecution.objects.filter(assignment=assignment).exists()

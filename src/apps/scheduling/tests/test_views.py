@@ -49,6 +49,34 @@ def test_workspace_calendar_view_lists_occurrences_for_the_month(client):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("query", "value"),
+    [
+        ("year", "not-a-year"),
+        ("year", "0"),
+        ("year", "10000"),
+        ("month", "not-a-month"),
+        ("month", "13"),
+    ],
+)
+def test_workspace_calendar_rejects_invalid_date_parameters(client, query, value):
+    user = get_user_model().objects.create_user(
+        username=f"invalid-calendar-{query}-{value}".replace("-", ""),
+        email=f"invalid-calendar-{query}-{value}@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Calendário inválido", owner=user)
+    client.force_login(user)
+
+    response = client.get(
+        reverse("scheduling:calendar", args=[workspace.pk]),
+        {query: value},
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
 def test_occurrence_detail_allows_own_assignment_completion(client):
     user = get_user_model().objects.create_user(
         username="occurrence-user",
@@ -366,7 +394,7 @@ def test_workspace_manager_can_assign_occurrence_to_member(client):
 
 
 @pytest.mark.django_db
-def test_collaborator_cannot_assign_occurrence_to_another_member(client):
+def test_collaborator_can_assign_occurrence_to_another_member(client):
     user_model = get_user_model()
     owner = user_model.objects.create_user(
         username="assign-collab-owner",
@@ -383,7 +411,7 @@ def test_collaborator_cannot_assign_occurrence_to_another_member(client):
         email="assign-collab-target@example.com",
         password="Strong-password-123!",
     )
-    workspace = Workspace.objects.create(name="Colaborador não atribui", owner=owner)
+    workspace = Workspace.objects.create(name="Colaborador atribui", owner=owner)
     WorkspaceMembership.objects.create(
         workspace=workspace,
         user=collaborator,
@@ -394,7 +422,7 @@ def test_collaborator_cannot_assign_occurrence_to_another_member(client):
         user=assignee,
         role=WorkspaceMembership.Role.COLLABORATOR,
     )
-    task = Task.objects.create(workspace=workspace, title="Tarefa sem atribuição", created_by=owner)
+    task = Task.objects.create(workspace=workspace, title="Tarefa compartilhada", created_by=owner)
     occurrence = TaskOccurrence.objects.create(task=task, scheduled_date=date(2026, 10, 29))
     detail_url = reverse("scheduling:occurrence-detail", args=[workspace.pk, occurrence.pk])
     client.force_login(collaborator)
@@ -406,10 +434,9 @@ def test_collaborator_cannot_assign_occurrence_to_another_member(client):
     )
 
     assert detail_response.status_code == 200
-    assert b"Atribuir respons\xc3\xa1vel" not in detail_response.content
-    assert post_response.status_code == 404
-    assert occurrence.assignments.count() == 0
-
+    assert "Atribuir responsável" in detail_response.content.decode()
+    assert post_response.status_code == 302
+    assert occurrence.assignments.filter(user=assignee).exists()
 
 @pytest.mark.django_db
 def test_occurrence_can_be_assigned_to_workspace_owner(client):
@@ -644,3 +671,420 @@ def test_task_list_shows_generated_occurrences_and_allows_rule_creation(client):
     html = list_response.content.decode()
     assert "Planejamento semanal" in html
     assert "Próximas ocorrências" in html
+
+
+@pytest.mark.django_db
+def test_recurrence_creation_rolls_back_rule_when_occurrence_generation_fails(
+    client, monkeypatch
+):
+    user = get_user_model().objects.create_user(
+        username="atomic-recurrence-user",
+        email="atomic-recurrence@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Recorrência atômica", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Tarefa com geração protegida",
+        created_by=user,
+    )
+
+    def fail_generation(*args, **kwargs):
+        raise RuntimeError("Falha simulada na geração de ocorrências.")
+
+    monkeypatch.setattr(
+        "apps.scheduling.views.generate_occurrences",
+        fail_generation,
+    )
+    client.force_login(user)
+
+    with pytest.raises(RuntimeError, match="Falha simulada"):
+        client.post(
+            reverse("scheduling:create", args=[workspace.pk, task.pk]),
+            {
+                "frequency": ScheduleRule.Frequency.WEEKLY,
+                "starts_on": "2026-11-16",
+                "ends_on": "2026-11-30",
+                "weekdays": ["1", "5"],
+                "anchor_date": "2026-11-16",
+            },
+        )
+
+    assert not ScheduleRule.objects.filter(task=task).exists()
+    assert not TaskOccurrence.objects.filter(task=task).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("year", "month", "available_link", "unavailable_label"),
+    [
+        (1, 1, "?year=1&month=2", "Anterior"),
+        (9999, 12, "?year=9999&month=11", "Próximo"),
+    ],
+)
+def test_workspace_calendar_disables_navigation_beyond_supported_years(
+    client, year, month, available_link, unavailable_label
+):
+    user = get_user_model().objects.create_user(
+        username=f"calendar-boundary-{year}",
+        email=f"calendar-boundary-{year}@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Limites do calendário", owner=user)
+    client.force_login(user)
+
+    response = client.get(
+        reverse("scheduling:calendar", args=[workspace.pk]),
+        {"year": year, "month": month},
+    )
+
+    html = response.content.decode()
+    assert response.status_code == 200
+    assert available_link in html
+    assert f'aria-disabled="true">{unavailable_label}</span>' in html
+
+
+@pytest.mark.django_db
+def test_recurrence_creation_rejects_end_date_before_start_date(client):
+    user = get_user_model().objects.create_user(
+        username="invalid-recurrence-range",
+        email="invalid-recurrence-range@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Intervalo inválido", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Recorrência com intervalo inválido",
+        created_by=user,
+    )
+    client.force_login(user)
+
+    response = client.post(
+        reverse("scheduling:create", args=[workspace.pk, task.pk]),
+        {
+            "frequency": ScheduleRule.Frequency.WEEKLY,
+            "starts_on": "2026-11-20",
+            "ends_on": "2026-11-19",
+            "weekdays": ["1", "5"],
+            "anchor_date": "2026-11-20",
+        },
+    )
+
+    assert response.status_code == 200
+    assert (
+        "A data de término deve ser igual ou posterior à data de início."
+        in response.content.decode()
+    )
+    assert not ScheduleRule.objects.filter(task=task).exists()
+    assert not TaskOccurrence.objects.filter(task=task).exists()
+
+
+@pytest.mark.django_db
+def test_inactive_workspace_member_cannot_download_execution_attachment(client, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    user_model = get_user_model()
+    owner = user_model.objects.create_user(
+        username="attachment-access-owner",
+        email="attachment-access-owner@example.com",
+        password="Strong-password-123!",
+    )
+    former_member = user_model.objects.create_user(
+        username="attachment-former-member",
+        email="attachment-former-member@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Anexo restrito", owner=owner)
+    membership = WorkspaceMembership.objects.create(
+        workspace=workspace,
+        user=former_member,
+        role=WorkspaceMembership.Role.READER,
+        is_active=False,
+    )
+    task = Task.objects.create(workspace=workspace, title="Evidência", created_by=owner)
+    occurrence = TaskOccurrence.objects.create(task=task, scheduled_date=date(2026, 11, 17))
+    assignment = occurrence.assignments.create(user=owner)
+    execution = TaskExecution.objects.create(
+        assignment=assignment,
+        created_by=owner,
+        attachment=SimpleUploadedFile(
+            "evidence.pdf",
+            b"%PDF-1.4\\nEvidence\\n%%EOF",
+            content_type="application/pdf",
+        ),
+    )
+    attachment_url = reverse(
+        "scheduling:execution-attachment",
+        args=[workspace.pk, occurrence.pk, execution.pk],
+    )
+    client.force_login(former_member)
+
+    response = client.get(attachment_url)
+
+    assert not membership.is_active
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_execution_attachment_cannot_be_accessed_through_another_workspace(
+    client, settings, tmp_path
+):
+    settings.MEDIA_ROOT = tmp_path
+    user_model = get_user_model()
+    owner = user_model.objects.create_user(
+        username="attachment-owner",
+        email="attachment-owner@example.com",
+        password="Strong-password-123!",
+    )
+    other_owner = user_model.objects.create_user(
+        username="attachment-other-owner",
+        email="attachment-other-owner@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Workspace original", owner=owner)
+    other_workspace = Workspace.objects.create(name="Outro workspace", owner=other_owner)
+    task = Task.objects.create(workspace=workspace, title="Evidência", created_by=owner)
+    occurrence = TaskOccurrence.objects.create(task=task, scheduled_date=date(2026, 11, 17))
+    assignment = occurrence.assignments.create(user=owner)
+    execution = TaskExecution.objects.create(
+        assignment=assignment,
+        created_by=owner,
+        attachment=SimpleUploadedFile(
+            "evidence.pdf",
+            b"%PDF-1.4\\nEvidence\\n%%EOF",
+            content_type="application/pdf",
+        ),
+    )
+    attachment_url = reverse(
+        "scheduling:execution-attachment",
+        args=[other_workspace.pk, occurrence.pk, execution.pk],
+    )
+    client.force_login(other_owner)
+
+    response = client.get(attachment_url)
+
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_archived_task_cannot_create_new_recurrence(client):
+    user = get_user_model().objects.create_user(
+        username="archived-recurrence-owner",
+        email="archived-recurrence-owner@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Recorrência arquivada", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Tarefa arquivada",
+        created_by=user,
+        status=Task.Status.ARCHIVED,
+    )
+    client.force_login(user)
+
+    response = client.post(
+        reverse("scheduling:create", args=[workspace.pk, task.pk]),
+        {
+            "frequency": ScheduleRule.Frequency.WEEKLY,
+            "starts_on": "2026-11-17",
+            "ends_on": "2026-11-30",
+            "weekdays": ["1", "5"],
+            "anchor_date": "2026-11-17",
+        },
+    )
+
+    assert response.status_code == 404
+    assert not ScheduleRule.objects.filter(task=task).exists()
+    assert not TaskOccurrence.objects.filter(task=task).exists()
+
+
+@pytest.mark.django_db
+def test_assignment_completion_rejects_mismatched_occurrence_in_url(client):
+    user = get_user_model().objects.create_user(
+        username="completion-scope-user",
+        email="completion-scope@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Escopo da conclusão", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Tarefa com ocorrências distintas",
+        created_by=user,
+    )
+    assigned_occurrence = TaskOccurrence.objects.create(
+        task=task,
+        scheduled_date=date(2026, 11, 17),
+    )
+    unrelated_occurrence = TaskOccurrence.objects.create(
+        task=task,
+        scheduled_date=date(2026, 11, 18),
+    )
+    assignment = assigned_occurrence.assignments.create(user=user)
+    TaskExecution.objects.create(
+        assignment=assignment,
+        created_by=user,
+        comments="Execução registrada antes da conclusão.",
+    )
+    client.force_login(user)
+
+    response = client.post(
+        reverse(
+            "scheduling:complete-assignment",
+            args=[workspace.pk, unrelated_occurrence.pk, assignment.pk],
+        )
+    )
+
+    assert response.status_code == 404
+    assignment.refresh_from_db()
+    assert assignment.status == TaskAssignment.Status.PENDING
+
+
+
+@pytest.mark.django_db
+def test_workspace_calendar_uses_configured_local_date(client, monkeypatch):
+    user = get_user_model().objects.create_user(
+        username="calendar-local-date",
+        email="calendar-local-date@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Calendário no fuso local", owner=user)
+    monkeypatch.setattr("apps.scheduling.views.timezone.localdate", lambda: date(2026, 10, 1))
+    client.force_login(user)
+
+    response = client.get(reverse("scheduling:calendar", args=[workspace.pk]))
+
+    assert response.status_code == 200
+    assert response.context["year"] == 2026
+    assert response.context["month"] == 10
+    assert response.context["month_label"] == "Outubro de 2026"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("task_status", "occurrence_status"),
+    [
+        (Task.Status.ACTIVE, TaskOccurrence.Status.CANCELLED),
+        (Task.Status.ARCHIVED, TaskOccurrence.Status.OPEN),
+    ],
+)
+def test_closed_occurrence_or_archived_task_rejects_execution_creation(
+    client, task_status, occurrence_status
+):
+    user = get_user_model().objects.create_user(
+        username=f"closed-execution-{task_status}-{occurrence_status}",
+        email=f"closed-execution-{task_status}-{occurrence_status}@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Execução encerrada", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Tarefa sem novas execuções",
+        created_by=user,
+        status=task_status,
+    )
+    occurrence = TaskOccurrence.objects.create(
+        task=task,
+        scheduled_date=date(2026, 11, 18),
+        status=occurrence_status,
+    )
+    assignment = occurrence.assignments.create(user=user)
+    client.force_login(user)
+
+    response = client.post(
+        reverse("scheduling:occurrence-detail", args=[workspace.pk, occurrence.pk]),
+        {
+            "assignment_id": assignment.pk,
+            "started_at": "2026-11-18T09:00",
+            "ended_at": "2026-11-18T10:00",
+            "comments": "Tentativa após encerramento.",
+        },
+    )
+
+    assert response.status_code == 404
+    assert not TaskExecution.objects.filter(assignment=assignment).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("task_status", "occurrence_status"),
+    [
+        (Task.Status.ACTIVE, TaskOccurrence.Status.CANCELLED),
+        (Task.Status.ARCHIVED, TaskOccurrence.Status.OPEN),
+    ],
+)
+def test_closed_occurrence_or_archived_task_rejects_new_assignment(
+    client, task_status, occurrence_status
+):
+    user = get_user_model().objects.create_user(
+        username=f"closed-assignment-{task_status}-{occurrence_status}",
+        email=f"closed-assignment-{task_status}-{occurrence_status}@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Atribuição encerrada", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Tarefa sem novas atribuições",
+        created_by=user,
+        status=task_status,
+    )
+    occurrence = TaskOccurrence.objects.create(
+        task=task,
+        scheduled_date=date(2026, 11, 18),
+        status=occurrence_status,
+    )
+    client.force_login(user)
+
+    response = client.post(
+        reverse("scheduling:occurrence-assign", args=[workspace.pk, occurrence.pk]),
+        {"user": user.pk},
+    )
+
+    assert response.status_code == 404
+    assert occurrence.assignments.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("task_status", "occurrence_status"),
+    [
+        (Task.Status.ACTIVE, TaskOccurrence.Status.CANCELLED),
+        (Task.Status.ARCHIVED, TaskOccurrence.Status.OPEN),
+    ],
+)
+def test_closed_occurrence_or_archived_task_rejects_assignment_completion(
+    client, task_status, occurrence_status
+):
+    user = get_user_model().objects.create_user(
+        username=f"closed-completion-{task_status}-{occurrence_status}",
+        email=f"closed-completion-{task_status}-{occurrence_status}@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Conclusão encerrada", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Tarefa sem novas conclusões",
+        created_by=user,
+        status=task_status,
+    )
+    occurrence = TaskOccurrence.objects.create(
+        task=task,
+        scheduled_date=date(2026, 11, 18),
+        status=occurrence_status,
+    )
+    assignment = occurrence.assignments.create(user=user)
+    TaskExecution.objects.create(
+        assignment=assignment,
+        created_by=user,
+        comments="Execução anterior.",
+    )
+    client.force_login(user)
+
+    response = client.post(
+        reverse(
+            "scheduling:complete-assignment",
+            args=[workspace.pk, occurrence.pk, assignment.pk],
+        )
+    )
+
+    assert response.status_code == 404
+    assignment.refresh_from_db()
+    assert assignment.status == TaskAssignment.Status.PENDING
