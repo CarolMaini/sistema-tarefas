@@ -111,6 +111,12 @@ class TaskOccurrenceDetailView(LoginRequiredMixin, DetailView):
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
+        if (
+            self.object.status != TaskOccurrence.Status.OPEN
+            or self.object.task.status != Task.Status.ACTIVE
+        ):
+            raise Http404
+
         assignment_id = request.POST.get("assignment_id")
         assignment = self.object.assignments.filter(
             pk=assignment_id,
@@ -189,6 +195,11 @@ class TaskOccurrenceAssignView(LoginRequiredMixin, View):
         ).first()
         if occurrence is None:
             raise Http404
+        if (
+            occurrence.status != TaskOccurrence.Status.OPEN
+            or occurrence.task.status != Task.Status.ACTIVE
+        ):
+            raise Http404
 
         user_id = request.POST.get("user")
         if not user_id:
@@ -247,6 +258,8 @@ class TaskAssignmentCompleteView(LoginRequiredMixin, View):
             pk=kwargs["assignment_id"],
             occurrence__pk=kwargs["pk"],
             occurrence__task__workspace=self.workspace,
+            occurrence__status=TaskOccurrence.Status.OPEN,
+            occurrence__task__status=Task.Status.ACTIVE,
             user=request.user,
             status=TaskAssignment.Status.PENDING,
         ).first()
