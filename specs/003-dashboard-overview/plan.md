@@ -34,7 +34,20 @@ Substituir os contadores provisórios do Dashboard por consultas reais às atrib
 
 ## Project Structure
 
-src/apps/dashboard/\n├── views.py\n└── tests/\n    ├── test_dashboard.py\n    └── test_back_navigation.py\nsrc/templates/dashboard/\n└── dashboard.html\nspecs/003-dashboard-overview/\n├── spec.md\n├── plan.md\n├── tasks.md\n└── quickstart.md
+```text
+src/apps/dashboard/
+├── views.py
+└── tests/
+    ├── test_dashboard.py
+    └── test_back_navigation.py
+src/templates/dashboard/
+└── dashboard.html
+specs/003-dashboard-overview/
+├── spec.md
+├── plan.md
+├── tasks.md
+└── quickstart.md
+```
 
 ## Risks
 
