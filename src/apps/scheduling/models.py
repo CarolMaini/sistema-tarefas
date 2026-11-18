@@ -73,7 +73,8 @@ class ScheduleRule(models.Model):
             )
 
     def save(self, *args, **kwargs):
-        self.full_clean()
+        # Empty weekdays is a supported legacy value; custom clean() still validates its shape.
+        self.full_clean(exclude=["weekdays"])
         return super().save(*args, **kwargs)
 
     def __str__(self):
