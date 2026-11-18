@@ -1,16 +1,17 @@
-from datetime import date
-
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import redirect_to_login
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.db.models import Prefetch
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views import View
 from django.views.generic import CreateView, ListView, UpdateView
 
 from apps.audit.models import AuditEvent
+from apps.scheduling.models import TaskOccurrence
 from apps.workspaces.models import Workspace
 
 from .models import Task
@@ -31,17 +32,26 @@ class TaskListView(LoginRequiredMixin, ListView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        return self.workspace.tasks.select_related("created_by").all()
+        upcoming_occurrences = (
+            TaskOccurrence.objects.filter(scheduled_date__gte=timezone.localdate())
+            .order_by("scheduled_date")[:3]
+        )
+        return (
+            self.workspace.tasks.select_related("created_by")
+            .prefetch_related(
+                Prefetch(
+                    "occurrences",
+                    queryset=upcoming_occurrences,
+                    to_attr="upcoming_occurrences",
+                )
+            )
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["workspace"] = self.workspace
         context["can_create_tasks"] = self.workspace.can_create_tasks(self.request.user)
         context["can_manage_tasks"] = self.workspace.can_manage_space(self.request.user)
-        for task in context["tasks"]:
-            task.upcoming_occurrences = task.occurrences.filter(
-                scheduled_date__gte=date.today(),
-            ).order_by("scheduled_date")[:3]
         return context
 
 

@@ -1,7 +1,12 @@
+from datetime import date, timedelta
+
 import pytest
 from django.contrib.auth import get_user_model
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
+from apps.scheduling.models import TaskOccurrence
 from apps.tasks.models import Task
 from apps.workspaces.models import Workspace
 
@@ -266,3 +271,53 @@ def test_task_creation_enforces_workspace_role_permissions(
         assert task.created_by == actor
     else:
         assert not Task.objects.filter(workspace=workspace).exists()
+
+
+@pytest.mark.django_db
+def test_task_list_prefetches_only_three_upcoming_occurrences_per_task(client, monkeypatch):
+    user = get_user_model().objects.create_user(
+        username="task-list-prefetch-owner",
+        email="task-list-prefetch-owner@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Listagem otimizada", owner=user)
+    reference_date = date(2026, 11, 17)
+    monkeypatch.setattr("apps.tasks.views.timezone.localdate", lambda: reference_date)
+
+    tasks = [
+        Task.objects.create(
+            workspace=workspace,
+            title=f"Tarefa {index}",
+            created_by=user,
+        )
+        for index in range(5)
+    ]
+    for task in tasks:
+        for offset in [-1, 0, 1, 2, 3, 4]:
+            TaskOccurrence.objects.create(
+                task=task,
+                scheduled_date=reference_date + timedelta(days=offset),
+            )
+
+    client.force_login(user)
+    url = reverse("tasks:list", kwargs={"workspace_id": workspace.pk})
+
+    with CaptureQueriesContext(connection) as captured_queries:
+        response = client.get(url)
+
+    occurrence_queries = [
+        query for query in captured_queries.captured_queries
+        if "scheduling_taskoccurrence" in query["sql"].lower()
+    ]
+
+    assert response.status_code == 200
+    assert len(occurrence_queries) == 1
+
+    listed_tasks = list(response.context["tasks"])
+    assert len(listed_tasks) == 5
+    for task in listed_tasks:
+        assert [item.scheduled_date for item in task.upcoming_occurrences] == [
+            reference_date,
+            reference_date + timedelta(days=1),
+            reference_date + timedelta(days=2),
+        ]
