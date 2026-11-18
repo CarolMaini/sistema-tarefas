@@ -7,9 +7,10 @@
   <div class="mb-6">
     <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Resumo</p>
     <h1 class="mt-2 text-3xl font-bold text-slate-900">Dashboard</h1>
+    <p class="mt-2 text-slate-600">Olá, {{ user_name }}. Aqui está o resumo das suas atividades.</p>
   </div>
 
-  <section class="stats-grid">
+  <section class="stats-grid" aria-label="Indicadores pessoais">
     <div class="stat-card">
       <p>Meus espaços</p>
       <strong>{{ workspaces|length }}</strong>
@@ -19,7 +20,7 @@
       <strong>{{ pending_tasks }}</strong>
     </div>
     <div class="stat-card">
-      <p>Ocorrências</p>
+      <p>Próximas ocorrências (7 dias)</p>
       <strong>{{ upcoming_occurrences }}</strong>
     </div>
     <div class="stat-card">
@@ -30,7 +31,7 @@
 
   <section class="dashboard-grid">
     <div class="panel">
-      <h2>Espaços</h2>
+      <h2>Meus espaços</h2>
       {% if workspaces %}
         <ul class="list">
           {% for workspace in workspaces %}
@@ -41,16 +42,41 @@
         </ul>
       {% else %}
         <p>Você ainda não participa de nenhum espaço.</p>
+        <p class="mt-3">
+          <a href="{% url 'workspaces:create' %}">Criar meu primeiro espaço</a>
+        </p>
       {% endif %}
     </div>
 
     <div class="panel">
       <h2>Próximas ações</h2>
-      <p>Seu painel central deve mostrar tarefas, ocorrências e progresso por workspace.</p>
-      <div class="placeholder-box">
-        Área reservada para pendências, notificações e resumo do workspace.
-      </div>
+      {% if not workspaces %}
+        <p>Crie um espaço ou peça para participar de um espaço existente para começar.</p>
+      {% elif upcoming_assignments %}
+        <ul class="list">
+          {% for assignment in upcoming_assignments %}
+            <li>
+              <a href="{% url 'scheduling:occurrence-detail' workspace_id=assignment.occurrence.task.workspace_id pk=assignment.occurrence.pk %}">
+                <strong>{{ assignment.occurrence.task.title }}</strong>
+                <span class="block text-sm text-slate-600">
+                  {{ assignment.occurrence.task.workspace.name }} ·
+                  {{ assignment.occurrence.scheduled_date|date:"d/m/Y" }}
+                </span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>Não há próximas ações para os próximos 7 dias.</p>
+      {% endif %}
     </div>
   </section>
+
+  {% if workspaces and not pending_tasks %}
+    <section class="panel mt-5">
+      <h2>Suas pendências</h2>
+      <p>Nenhuma tarefa pendente no momento.</p>
+    </section>
+  {% endif %}
 </div>
 {% endblock %}
