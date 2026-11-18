@@ -2,7 +2,8 @@
 
 The production container uses Django's production settings, Gunicorn, PostgreSQL, and
 WhiteNoise for static assets. The local Docker Compose workflow continues to override
-the container command and settings for development.
+the container command and settings for development. The production process runs as
+the unprivileged `app` user (UID 10001), not as root.
 
 ## Required environment variables
 
@@ -21,6 +22,11 @@ policy at the hosting provider; container-local media files are not durable stor
 The production command applies migrations, collects static assets, and starts Gunicorn.
 Run `python src/manage.py check --deploy --settings=setup.settings.prod` with the
 production environment variables before release.
+
+The image prepares `/app/media` and `/app/staticfiles` for UID 10001. If a persistent
+volume is mounted at `/app/media`, configure the volume permissions so UID 10001 can
+read and write it. Prefer managed object storage for user uploads when supported by
+the hosting platform.
 
 ## Important operational requirements
 
