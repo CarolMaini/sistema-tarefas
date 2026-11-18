@@ -18,14 +18,16 @@
 ## Phase 3: Validation
 
 - [x] T007 Executar testes focados do Dashboard e os testes existentes de navegação.
-- [ ] T008 Executar Ruff, Django check, makemigrations --check --dry-run e suíte completa.
-- [ ] T009 Revisar isolamento de dados, ausência de migrations e atualizar esta lista com resultados reais.
+- [x] T008 Executar Ruff, Django check, makemigrations --check --dry-run e suíte completa (CI da PR #35, execução #79, concluída com sucesso).
+- [x] T009 Revisar isolamento de dados, ausência de migrations e atualizar esta lista com resultados reais.
 
 ## Results so far
 
-- PR #34 integrada à main; CI aprovado (Ruff, Django checks e suíte completa de testes).
-- A verificação explícita de migrations foi adicionada ao CI em PR separada; T008 será concluída após sua aprovação.
-- T009 permanece pendente até a validação final.
+- PR #34 integrada à main; CI aprovado para Ruff, Django checks e suíte completa de testes.
+- PR #35 integrada à main; CI da execução #79 aprovado em todas as etapas: Ruff, Django checks, `makemigrations --check --dry-run` e suíte completa de testes.
+- A verificação de migrations não identificou alterações de modelo pendentes.
+- Revisão dos testes do Dashboard: cobertura de autenticação, isolamento entre usuários e workspaces, estados ativos/inativos, janela temporal, status das ocorrências, ordenação, limite de resultados, links e estados vazios.
+- Nenhuma migration ou dependência foi necessária para a implementação do Dashboard.
 
 ## Dependencies
 
