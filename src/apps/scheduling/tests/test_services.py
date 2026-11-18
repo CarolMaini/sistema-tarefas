@@ -488,3 +488,48 @@ def test_monthly_rule_generates_february_29_in_leap_year():
         date(2028, 2, 22),
         date(2028, 2, 29),
     ]
+
+
+@pytest.mark.django_db
+def test_generation_stops_for_archived_task_and_preserves_history():
+    user = get_user_model().objects.create_user(
+        username="archived-task-generation",
+        email="archived-task-generation@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Tarefa arquivada", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Recorrência interrompida",
+        created_by=user,
+        status=Task.Status.ARCHIVED,
+    )
+    rule = ScheduleRule.objects.create(
+        task=task,
+        frequency=ScheduleRule.Frequency.WEEKLY,
+        starts_on=date(2026, 11, 23),
+        weekdays=[1],
+        default_assignee=user,
+        created_by=user,
+    )
+    historical_occurrence = TaskOccurrence.objects.create(
+        task=task,
+        schedule_rule=rule,
+        scheduled_date=date(2026, 11, 23),
+    )
+    historical_assignment = TaskAssignment.objects.create(
+        occurrence=historical_occurrence,
+        user=user,
+        status=TaskAssignment.Status.COMPLETED,
+    )
+
+    stats = generate_occurrences(rule, date(2026, 11, 23), date(2026, 11, 30))
+
+    historical_assignment.refresh_from_db()
+    assert stats == {"created": 0, "existing": 0, "ignored": 0}
+    assert TaskOccurrence.objects.filter(task=task).count() == 1
+    assert historical_assignment.status == TaskAssignment.Status.COMPLETED
+    assert not TaskOccurrence.objects.filter(
+        task=task,
+        scheduled_date=date(2026, 11, 30),
+    ).exists()
