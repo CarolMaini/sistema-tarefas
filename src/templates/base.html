@@ -239,7 +239,11 @@
 
               <div class="user-menu">
                 <span>{{ request.user.get_full_name|default:request.user.username }}</span>
-                <a href="{% url 'account_logout' %}">Sair</a>
+                {% if request.session.demo_access %}
+                  <a href="{% url 'accounts:demo_logout' %}">Sair da demonstração</a>
+                {% else %}
+                  <a href="{% url 'account_logout' %}">Sair</a>
+                {% endif %}
               </div>
             </header>
 

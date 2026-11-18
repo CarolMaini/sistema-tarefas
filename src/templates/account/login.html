@@ -46,6 +46,17 @@
         {% for message in messages %}<div class="form-alert form-alert-success" role="status">{{ message }}</div>{% endfor %}
       {% endif %}
 
+      {% if request.demo_access_enabled %}
+        <form class="auth-form" method="post" action="{% url 'accounts:demo_login' %}">
+          {% csrf_token %}
+          <button class="button button-primary" type="submit">
+            <span>Explorar como visitante</span>
+            <span class="button-arrow" aria-hidden="true">&#8594;</span>
+          </button>
+        </form>
+        <div class="auth-divider"><span>ou entre com sua conta</span></div>
+      {% endif %}
+
       <form class="auth-form" method="post" action="{% url 'account_login' %}">
         {% csrf_token %}
         {{ redirect_field }}
