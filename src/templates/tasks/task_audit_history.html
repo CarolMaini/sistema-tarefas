@@ -28,6 +28,21 @@
         </li>
       {% endfor %}
     </ol>
+    {% if page_obj.has_other_pages %}
+      <nav class="mt-6 flex items-center justify-between gap-4" aria-label="Paginação do histórico">
+        {% if page_obj.has_previous %}
+          <a href="?page={{ page_obj.previous_page_number }}" class="app-button app-button-secondary">Anterior</a>
+        {% else %}
+          <span></span>
+        {% endif %}
+        <span class="text-sm text-slate-600">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+          <a href="?page={{ page_obj.next_page_number }}" class="app-button app-button-secondary">Próxima</a>
+        {% else %}
+          <span></span>
+        {% endif %}
+      </nav>
+    {% endif %}
   {% else %}
     <div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
       <p class="text-lg font-medium text-slate-700">Nenhuma atividade registrada.</p>
