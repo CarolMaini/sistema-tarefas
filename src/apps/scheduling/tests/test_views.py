@@ -956,3 +956,135 @@ def test_workspace_calendar_uses_configured_local_date(client, monkeypatch):
     assert response.context["year"] == 2026
     assert response.context["month"] == 10
     assert response.context["month_label"] == "Outubro de 2026"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("task_status", "occurrence_status"),
+    [
+        (Task.Status.ACTIVE, TaskOccurrence.Status.CANCELLED),
+        (Task.Status.ARCHIVED, TaskOccurrence.Status.OPEN),
+    ],
+)
+def test_closed_occurrence_or_archived_task_rejects_execution_creation(
+    client, task_status, occurrence_status
+):
+    user = get_user_model().objects.create_user(
+        username=f"closed-execution-{task_status}-{occurrence_status}",
+        email=f"closed-execution-{task_status}-{occurrence_status}@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Execução encerrada", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Tarefa sem novas execuções",
+        created_by=user,
+        status=task_status,
+    )
+    occurrence = TaskOccurrence.objects.create(
+        task=task,
+        scheduled_date=date(2026, 11, 18),
+        status=occurrence_status,
+    )
+    assignment = occurrence.assignments.create(user=user)
+    client.force_login(user)
+
+    response = client.post(
+        reverse("scheduling:occurrence-detail", args=[workspace.pk, occurrence.pk]),
+        {
+            "assignment_id": assignment.pk,
+            "started_at": "2026-11-18T09:00",
+            "ended_at": "2026-11-18T10:00",
+            "comments": "Tentativa após encerramento.",
+        },
+    )
+
+    assert response.status_code == 404
+    assert not TaskExecution.objects.filter(assignment=assignment).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("task_status", "occurrence_status"),
+    [
+        (Task.Status.ACTIVE, TaskOccurrence.Status.CANCELLED),
+        (Task.Status.ARCHIVED, TaskOccurrence.Status.OPEN),
+    ],
+)
+def test_closed_occurrence_or_archived_task_rejects_new_assignment(
+    client, task_status, occurrence_status
+):
+    user = get_user_model().objects.create_user(
+        username=f"closed-assignment-{task_status}-{occurrence_status}",
+        email=f"closed-assignment-{task_status}-{occurrence_status}@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Atribuição encerrada", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Tarefa sem novas atribuições",
+        created_by=user,
+        status=task_status,
+    )
+    occurrence = TaskOccurrence.objects.create(
+        task=task,
+        scheduled_date=date(2026, 11, 18),
+        status=occurrence_status,
+    )
+    client.force_login(user)
+
+    response = client.post(
+        reverse("scheduling:occurrence-assign", args=[workspace.pk, occurrence.pk]),
+        {"user": user.pk},
+    )
+
+    assert response.status_code == 404
+    assert occurrence.assignments.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("task_status", "occurrence_status"),
+    [
+        (Task.Status.ACTIVE, TaskOccurrence.Status.CANCELLED),
+        (Task.Status.ARCHIVED, TaskOccurrence.Status.OPEN),
+    ],
+)
+def test_closed_occurrence_or_archived_task_rejects_assignment_completion(
+    client, task_status, occurrence_status
+):
+    user = get_user_model().objects.create_user(
+        username=f"closed-completion-{task_status}-{occurrence_status}",
+        email=f"closed-completion-{task_status}-{occurrence_status}@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Conclusão encerrada", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Tarefa sem novas conclusões",
+        created_by=user,
+        status=task_status,
+    )
+    occurrence = TaskOccurrence.objects.create(
+        task=task,
+        scheduled_date=date(2026, 11, 18),
+        status=occurrence_status,
+    )
+    assignment = occurrence.assignments.create(user=user)
+    TaskExecution.objects.create(
+        assignment=assignment,
+        created_by=user,
+        comments="Execução anterior.",
+    )
+    client.force_login(user)
+
+    response = client.post(
+        reverse(
+            "scheduling:complete-assignment",
+            args=[workspace.pk, occurrence.pk, assignment.pk],
+        )
+    )
+
+    assert response.status_code == 404
+    assignment.refresh_from_db()
+    assert assignment.status == TaskAssignment.Status.PENDING
