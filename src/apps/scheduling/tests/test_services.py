@@ -368,3 +368,48 @@ def test_generation_does_not_reassign_occurrence_linked_to_another_rule():
     existing_occurrence.refresh_from_db()
     assert existing_occurrence.schedule_rule_id == other_rule.pk
     assert not existing_occurrence.assignments.exists()
+
+@pytest.mark.django_db
+def test_generation_does_not_assign_cancelled_occurrences():
+    user_model = get_user_model()
+    owner = user_model.objects.create_user(
+        username="cancelled-occurrence-owner",
+        email="cancelled-occurrence-owner@example.com",
+        password="Strong-password-123!",
+    )
+    assignee = user_model.objects.create_user(
+        username="cancelled-occurrence-assignee",
+        email="cancelled-occurrence-assignee@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Ocorrência cancelada", owner=owner)
+    WorkspaceMembership.objects.create(
+        workspace=workspace,
+        user=assignee,
+        role=WorkspaceMembership.Role.COLLABORATOR,
+    )
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Não reatribuir cancelada",
+        created_by=owner,
+    )
+    rule = ScheduleRule.objects.create(
+        task=task,
+        frequency=ScheduleRule.Frequency.WEEKLY,
+        starts_on=date(2026, 10, 5),
+        weekdays=[1],
+        default_assignee=assignee,
+        created_by=owner,
+    )
+    occurrence = TaskOccurrence.objects.create(
+        task=task,
+        schedule_rule=rule,
+        scheduled_date=date(2026, 10, 5),
+        status=TaskOccurrence.Status.CANCELLED,
+    )
+
+    stats = generate_occurrences(rule, date(2026, 10, 5), date(2026, 10, 5))
+
+    assert stats == {"created": 0, "existing": 1, "ignored": 1}
+    assert not occurrence.assignments.exists()
+
