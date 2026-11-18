@@ -165,6 +165,10 @@ def generate_occurrences(rule: ScheduleRule, start_date: date, end_date: date) -
             else:
                 existing += 1
 
+            if occurrence.status != TaskOccurrence.Status.OPEN:
+                ignored += 1
+                continue
+
             if occurrence.schedule_rule_id is None:
                 occurrence.schedule_rule = rule
                 occurrence.save(update_fields=["schedule_rule"])
