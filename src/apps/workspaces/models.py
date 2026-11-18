@@ -24,7 +24,11 @@ class Workspace(models.Model):
     def is_owner(self, user):
         if user is None:
             return False
-        return getattr(user, "is_authenticated", False) and self.owner_id == user.pk
+        return (
+            getattr(user, "is_authenticated", False)
+            and getattr(user, "is_active", False)
+            and self.owner_id == user.pk
+        )
 
     def get_assignable_users(self):
         user_model = self._meta.get_field("owner").remote_field.model
@@ -56,14 +60,24 @@ class Workspace(models.Model):
         return self.memberships.filter(user=user, is_active=True).exists()
 
     def can_view(self, user):
-        if not self.is_active or user is None or not getattr(user, "is_authenticated", False):
+        if (
+            not self.is_active
+            or user is None
+            or not getattr(user, "is_authenticated", False)
+            or not getattr(user, "is_active", False)
+        ):
             return False
         if self.is_owner(user):
             return True
         return self.memberships.filter(user=user, is_active=True).exists()
 
     def can_manage_space(self, user):
-        if not self.is_active or user is None or not getattr(user, "is_authenticated", False):
+        if (
+            not self.is_active
+            or user is None
+            or not getattr(user, "is_authenticated", False)
+            or not getattr(user, "is_active", False)
+        ):
             return False
         if self.is_owner(user):
             return True
@@ -74,7 +88,12 @@ class Workspace(models.Model):
         ).exists()
 
     def can_create_tasks(self, user):
-        if not self.is_active or user is None or not getattr(user, "is_authenticated", False):
+        if (
+            not self.is_active
+            or user is None
+            or not getattr(user, "is_authenticated", False)
+            or not getattr(user, "is_active", False)
+        ):
             return False
         if self.is_owner(user):
             return True
@@ -120,19 +139,19 @@ class WorkspaceMembership(models.Model):
         ]
 
     def can_view(self):
-        return self.is_active and self.role in {
+        return self.is_active and self.user.is_active and self.role in {
             self.Role.MANAGER,
             self.Role.COLLABORATOR,
             self.Role.READER,
         }
 
     def can_manage_space(self):
-        return self.is_active and (
+        return self.is_active and self.user.is_active and (
             self.role == self.Role.MANAGER or self.workspace.owner_id == self.user_id
         )
 
     def can_create_tasks(self):
-        return self.is_active and self.role in {
+        return self.is_active and self.user.is_active and self.role in {
             self.Role.MANAGER,
             self.Role.COLLABORATOR,
         }

@@ -208,3 +208,69 @@ def test_inactive_workspace_denies_all_workspace_permissions():
         assert workspace.can_assign_user(user) is False
 
     assert not workspace.get_assignable_users().exists()
+
+
+@pytest.mark.django_db
+def test_deactivated_account_loses_all_workspace_permissions():
+    user_model = get_user_model()
+    owner = user_model.objects.create_user(
+        username="deactivated-owner",
+        email="deactivated-owner@example.com",
+        password="Strong-password-123!",
+    )
+    manager = user_model.objects.create_user(
+        username="deactivated-manager",
+        email="deactivated-manager@example.com",
+        password="Strong-password-123!",
+    )
+    collaborator = user_model.objects.create_user(
+        username="deactivated-collaborator",
+        email="deactivated-collaborator@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Active workspace", owner=owner)
+    WorkspaceMembership.objects.create(
+        workspace=workspace,
+        user=manager,
+        role=WorkspaceMembership.Role.MANAGER,
+    )
+    WorkspaceMembership.objects.create(
+        workspace=workspace,
+        user=collaborator,
+        role=WorkspaceMembership.Role.COLLABORATOR,
+    )
+
+    for user in (owner, manager, collaborator):
+        user.is_active = False
+        user.save(update_fields=["is_active"])
+
+        assert workspace.is_owner(user) is False
+        assert workspace.can_view(user) is False
+        assert workspace.can_manage_space(user) is False
+        assert workspace.can_create_tasks(user) is False
+        assert workspace.can_assign_user(user) is False
+
+
+@pytest.mark.django_db
+def test_inactive_membership_user_has_no_membership_permissions():
+    user = get_user_model().objects.create_user(
+        username="inactive-membership-user",
+        email="inactive-membership-user@example.com",
+        password="Strong-password-123!",
+        is_active=False,
+    )
+    owner = get_user_model().objects.create_user(
+        username="membership-owner",
+        email="membership-owner@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Membership permissions", owner=owner)
+    membership = WorkspaceMembership.objects.create(
+        workspace=workspace,
+        user=user,
+        role=WorkspaceMembership.Role.MANAGER,
+    )
+
+    assert membership.can_view() is False
+    assert membership.can_manage_space() is False
+    assert membership.can_create_tasks() is False
