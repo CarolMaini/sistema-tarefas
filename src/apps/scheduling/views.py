@@ -244,6 +244,7 @@ class TaskAssignmentCompleteView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         assignment = TaskAssignment.objects.select_related("occurrence__task").filter(
             pk=kwargs["assignment_id"],
+            occurrence__pk=kwargs["pk"],
             occurrence__task__workspace=self.workspace,
             user=request.user,
             status=TaskAssignment.Status.PENDING,
