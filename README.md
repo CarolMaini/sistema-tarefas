@@ -31,7 +31,7 @@ O projeto está em desenvolvimento incremental. Os itens abaixo distinguem funci
 ## ✔️ Técnicas e tecnologias utilizadas
 
 - **Python 3.12** — linguagem principal.
-- **Django 6.1.2** — framework web e organização da aplicação.
+- **Django 6.1.3** — framework web e organização da aplicação.
 - **PostgreSQL** — banco de dados principal previsto para produção.
 - **SQLite** — banco utilizado no desenvolvimento local.
 - **Django Templates, HTML e Tailwind CSS** — camada de apresentação.
