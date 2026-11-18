@@ -55,3 +55,6 @@ jobs:
         env:
           USE_SQLITE_FOR_TESTS: "1"
         run: pytest
+
+      - name: Build production Docker image
+        run: docker build --tag organizador-tarefas:ci .
