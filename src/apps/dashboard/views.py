@@ -4,6 +4,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.views.generic import TemplateView
 
+from apps.scheduling.models import TaskOccurrence
 from apps.tasks.models import TaskAssignment
 from apps.workspaces.models import Workspace
 
@@ -45,7 +46,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             )
         )
         upcoming_assignments = pending_assignments.filter(
-            occurrence__status="open",
+            occurrence__status=TaskOccurrence.Status.OPEN,
             occurrence__scheduled_date__gte=today,
             occurrence__scheduled_date__lte=today + timedelta(days=7),
         ).order_by(
