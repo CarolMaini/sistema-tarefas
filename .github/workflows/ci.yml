@@ -32,7 +32,78 @@ jobs:
       - name: Run Django checks
         run: python src/manage.py check --settings=setup.settings.local
 
+      - name: Validate production settings
+        env:
+          DJANGO_SETTINGS_MODULE: setup.settings.prod
+          DJANGO_SECRET_KEY: ci-only-secret-key-that-is-long-enough-for-django-production-validation-123456
+          ALLOWED_HOSTS: example.com
+          CSRF_TRUSTED_ORIGINS: https://example.com
+          POSTGRES_DB: organizador_tarefas
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PORT: "5432"
+          EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+        run: |
+          python src/manage.py check --deploy --settings=setup.settings.prod
+          python src/manage.py collectstatic --noinput --settings=setup.settings.prod
+
+      - name: Check for missing migrations
+        run: python src/manage.py makemigrations --check --dry-run --settings=setup.settings.local
+
       - name: Run tests
         env:
           USE_SQLITE_FOR_TESTS: "1"
         run: pytest
+
+      - name: Build production Docker image
+        run: docker build --tag organizador-tarefas:ci .
+
+      - name: Smoke test production container
+        env:
+          DJANGO_SECRET_KEY: ci-only-secret-key-that-is-long-enough-for-django-production-validation-123456
+          POSTGRES_DB: organizador_tarefas
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-only-password
+          ALLOWED_HOSTS: localhost,127.0.0.1
+          CSRF_TRUSTED_ORIGINS: https://localhost
+          EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+        run: |
+          set -euo pipefail
+          docker network create ci-network
+          docker run -d --name ci-postgres --network ci-network \
+            -e POSTGRES_DB="$POSTGRES_DB" \
+            -e POSTGRES_USER="$POSTGRES_USER" \
+            -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
+            postgres:16-alpine
+          for attempt in $(seq 1 30); do
+            if docker exec ci-postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"; then
+              break
+            fi
+            sleep 2
+          done
+          docker exec ci-postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+          docker run -d --name ci-app --network ci-network -p 8000:8000 \
+            -e DJANGO_SETTINGS_MODULE=setup.settings.prod \
+            -e DJANGO_SECRET_KEY="$DJANGO_SECRET_KEY" \
+            -e POSTGRES_DB="$POSTGRES_DB" \
+            -e POSTGRES_USER="$POSTGRES_USER" \
+            -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
+            -e POSTGRES_HOST=ci-postgres \
+            -e POSTGRES_PORT=5432 \
+            -e ALLOWED_HOSTS="$ALLOWED_HOSTS" \
+            -e CSRF_TRUSTED_ORIGINS="$CSRF_TRUSTED_ORIGINS" \
+            -e EMAIL_BACKEND="$EMAIL_BACKEND" \
+            organizador-tarefas:ci
+          for attempt in $(seq 1 30); do
+            status=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+              -H "X-Forwarded-Proto: https" http://127.0.0.1:8000/ || true)
+            if [ "$status" = "200" ] || [ "$status" = "302" ]; then
+              echo "Application responded with HTTP $status"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs ci-app
+          exit 1
+        if: success()

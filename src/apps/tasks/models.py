@@ -114,10 +114,24 @@ class TaskAssignment(models.Model):
         if self.user_id != getattr(actor, "pk", None):
             raise ValueError("Only the assignee can complete this task assignment.")
 
+        if not self.executions.exists():
+            raise ValueError("A task assignment requires an execution record before completion.")
+
+        completed_at = timezone.now()
+        updated = type(self).objects.filter(
+            pk=self.pk,
+            status=self.Status.PENDING,
+        ).update(
+            status=self.Status.COMPLETED,
+            completed_at=completed_at,
+            completed_by=actor,
+        )
+        if not updated:
+            raise ValueError("Only pending task assignments can be completed.")
+
         self.status = self.Status.COMPLETED
-        self.completed_at = timezone.now()
+        self.completed_at = completed_at
         self.completed_by = actor
-        self.save(update_fields=["status", "completed_at", "completed_by"])
 
     def __str__(self):
         return f"{self.user} -> {self.occurrence}"
@@ -149,8 +163,22 @@ class TaskExecution(models.Model):
 
     def clean(self):
         super().clean()
+        if self.assignment_id and self.created_by_id:
+            if self.assignment.user_id != self.created_by_id:
+                raise ValidationError(
+                    {
+                        "created_by": (
+                            "O registro de execução deve ser feito pelo responsável "
+                            "pela atribuição."
+                        )
+                    }
+                )
         if self.started_at and self.ended_at and self.ended_at < self.started_at:
             raise ValidationError({"ended_at": "O horário de fim deve ser posterior ao início."})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Execução de {self.assignment} em {self.created_at}"

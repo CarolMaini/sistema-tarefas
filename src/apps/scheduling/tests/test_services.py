@@ -10,6 +10,43 @@ from apps.workspaces.models import Workspace, WorkspaceMembership
 
 
 @pytest.mark.django_db
+def test_weekly_rule_started_midweek_keeps_selected_weekdays():
+    user = get_user_model().objects.create_user(
+        username="midweek-planner",
+        email="midweek-planner@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Início no meio da semana", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Revisar planejamento",
+        created_by=user,
+    )
+    rule = ScheduleRule.objects.create(
+        task=task,
+        frequency=ScheduleRule.Frequency.WEEKLY,
+        starts_on=date(2026, 10, 8),  # Thursday
+        weekdays=[1, 5],  # Monday and Friday
+        created_by=user,
+    )
+
+    stats = generate_occurrences(rule, date(2026, 10, 8), date(2026, 10, 16))
+
+    generated_dates = list(
+        TaskOccurrence.objects.filter(task=task, schedule_rule=rule)
+        .order_by("scheduled_date")
+        .values_list("scheduled_date", flat=True)
+    )
+
+    assert stats["created"] == 3
+    assert generated_dates == [
+        date(2026, 10, 9),
+        date(2026, 10, 12),
+        date(2026, 10, 16),
+    ]
+
+
+@pytest.mark.django_db
 def test_weekly_rule_generates_occurrences_for_selected_days():
     user = get_user_model().objects.create_user(
         username="planner",
@@ -65,6 +102,40 @@ def test_biweekly_rule_is_idempotent_and_uses_anchor_date():
     assert first["created"] > 0
     assert second["created"] == 0
     assert TaskOccurrence.objects.filter(task=task, schedule_rule=rule).count() == first["created"]
+
+
+@pytest.mark.django_db
+def test_biweekly_rule_checks_weekdays_in_chronological_order():
+    user = get_user_model().objects.create_user(
+        username="biweekly-order",
+        email="biweekly-order@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Ordem quinzenal", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Verificar datas quinzenais",
+        created_by=user,
+    )
+    rule = ScheduleRule.objects.create(
+        task=task,
+        frequency=ScheduleRule.Frequency.BIWEEKLY,
+        starts_on=date(2026, 10, 7),  # Wednesday
+        anchor_date=date(2026, 10, 7),
+        weekdays=[1, 5],  # Monday and Friday
+        created_by=user,
+    )
+
+    stats = generate_occurrences(rule, date(2026, 10, 9), date(2026, 10, 10))
+
+    generated_dates = list(
+        TaskOccurrence.objects.filter(task=task, schedule_rule=rule)
+        .order_by("scheduled_date")
+        .values_list("scheduled_date", flat=True)
+    )
+
+    assert stats["created"] == 1
+    assert generated_dates == [date(2026, 10, 9)]
 
 
 @pytest.mark.django_db
@@ -297,3 +368,168 @@ def test_generation_does_not_reassign_occurrence_linked_to_another_rule():
     existing_occurrence.refresh_from_db()
     assert existing_occurrence.schedule_rule_id == other_rule.pk
     assert not existing_occurrence.assignments.exists()
+
+@pytest.mark.django_db
+def test_generation_does_not_assign_cancelled_occurrences():
+    user_model = get_user_model()
+    owner = user_model.objects.create_user(
+        username="cancelled-occurrence-owner",
+        email="cancelled-occurrence-owner@example.com",
+        password="Strong-password-123!",
+    )
+    assignee = user_model.objects.create_user(
+        username="cancelled-occurrence-assignee",
+        email="cancelled-occurrence-assignee@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Ocorrência cancelada", owner=owner)
+    WorkspaceMembership.objects.create(
+        workspace=workspace,
+        user=assignee,
+        role=WorkspaceMembership.Role.COLLABORATOR,
+    )
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Não reatribuir cancelada",
+        created_by=owner,
+    )
+    rule = ScheduleRule.objects.create(
+        task=task,
+        frequency=ScheduleRule.Frequency.WEEKLY,
+        starts_on=date(2026, 10, 5),
+        weekdays=[1],
+        default_assignee=assignee,
+        created_by=owner,
+    )
+    occurrence = TaskOccurrence.objects.create(
+        task=task,
+        schedule_rule=rule,
+        scheduled_date=date(2026, 10, 5),
+        status=TaskOccurrence.Status.CANCELLED,
+    )
+
+    stats = generate_occurrences(rule, date(2026, 10, 5), date(2026, 10, 5))
+
+    assert stats == {"created": 0, "existing": 1, "ignored": 1}
+    assert not occurrence.assignments.exists()
+
+
+
+@pytest.mark.django_db
+def test_weekly_rule_respects_end_date_across_year_boundary():
+    user = get_user_model().objects.create_user(
+        username="year-boundary-weekly",
+        email="year-boundary-weekly@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Virada do ano", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Planejamento de fim de ano",
+        created_by=user,
+    )
+    rule = ScheduleRule.objects.create(
+        task=task,
+        frequency=ScheduleRule.Frequency.WEEKLY,
+        starts_on=date(2026, 12, 28),  # Monday
+        ends_on=date(2027, 1, 4),  # Monday
+        weekdays=[1],
+        created_by=user,
+    )
+
+    stats = generate_occurrences(rule, date(2026, 12, 28), date(2027, 1, 11))
+
+    generated_dates = list(
+        TaskOccurrence.objects.filter(task=task, schedule_rule=rule)
+        .order_by("scheduled_date")
+        .values_list("scheduled_date", flat=True)
+    )
+
+    assert stats["created"] == 2
+    assert generated_dates == [date(2026, 12, 28), date(2027, 1, 4)]
+
+
+@pytest.mark.django_db
+def test_monthly_rule_generates_february_29_in_leap_year():
+    user = get_user_model().objects.create_user(
+        username="leap-year-monthly",
+        email="leap-year-monthly@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Ano bissexto", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Revisão de fevereiro",
+        created_by=user,
+    )
+    rule = ScheduleRule.objects.create(
+        task=task,
+        frequency=ScheduleRule.Frequency.MONTHLY,
+        starts_on=date(2028, 2, 1),
+        ends_on=date(2028, 2, 29),
+        weekdays=[2],  # Tuesday; February 29, 2028 is a Tuesday.
+        created_by=user,
+    )
+
+    stats = generate_occurrences(rule, date(2028, 2, 1), date(2028, 2, 29))
+
+    generated_dates = list(
+        TaskOccurrence.objects.filter(task=task, schedule_rule=rule)
+        .order_by("scheduled_date")
+        .values_list("scheduled_date", flat=True)
+    )
+
+    assert stats["created"] == 5
+    assert date(2028, 2, 29) in generated_dates
+    assert generated_dates == [
+        date(2028, 2, 1),
+        date(2028, 2, 8),
+        date(2028, 2, 15),
+        date(2028, 2, 22),
+        date(2028, 2, 29),
+    ]
+
+
+@pytest.mark.django_db
+def test_generation_stops_for_archived_task_and_preserves_history():
+    user = get_user_model().objects.create_user(
+        username="archived-task-generation",
+        email="archived-task-generation@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Tarefa arquivada", owner=user)
+    task = Task.objects.create(
+        workspace=workspace,
+        title="Recorrência interrompida",
+        created_by=user,
+        status=Task.Status.ARCHIVED,
+    )
+    rule = ScheduleRule.objects.create(
+        task=task,
+        frequency=ScheduleRule.Frequency.WEEKLY,
+        starts_on=date(2026, 11, 23),
+        weekdays=[1],
+        default_assignee=user,
+        created_by=user,
+    )
+    historical_occurrence = TaskOccurrence.objects.create(
+        task=task,
+        schedule_rule=rule,
+        scheduled_date=date(2026, 11, 23),
+    )
+    historical_assignment = TaskAssignment.objects.create(
+        occurrence=historical_occurrence,
+        user=user,
+        status=TaskAssignment.Status.COMPLETED,
+    )
+
+    stats = generate_occurrences(rule, date(2026, 11, 23), date(2026, 11, 30))
+
+    historical_assignment.refresh_from_db()
+    assert stats == {"created": 0, "existing": 0, "ignored": 0}
+    assert TaskOccurrence.objects.filter(task=task).count() == 1
+    assert historical_assignment.status == TaskAssignment.Status.COMPLETED
+    assert not TaskOccurrence.objects.filter(
+        task=task,
+        scheduled_date=date(2026, 11, 30),
+    ).exists()

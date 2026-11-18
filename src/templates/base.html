@@ -187,30 +187,14 @@
               </div>
             </div>
 
-            {% if workspace %}
-              {% with nav_workspace=workspace %}
-                <nav class="nav-stack">
-                  <a href="{% url 'dashboard:home' %}" class="nav-item">Dashboard</a>
-                  <a href="{% url 'workspaces:list' %}" class="nav-item">Espaços</a>
-                  <a href="{% url 'tasks:list' nav_workspace.pk %}" class="nav-item">Tarefas</a>
-                  <a href="{% url 'scheduling:calendar' nav_workspace.pk %}" class="nav-item">Calendário</a>
-                </nav>
-              {% endwith %}
-            {% elif active_workspace %}
-              {% with nav_workspace=active_workspace %}
-                <nav class="nav-stack">
-                  <a href="{% url 'dashboard:home' %}" class="nav-item">Dashboard</a>
-                  <a href="{% url 'workspaces:list' %}" class="nav-item">Espaços</a>
-                  <a href="{% url 'tasks:list' nav_workspace.pk %}" class="nav-item">Tarefas</a>
-                  <a href="{% url 'scheduling:calendar' nav_workspace.pk %}" class="nav-item">Calendário</a>
-                </nav>
-              {% endwith %}
-            {% else %}
-              <nav class="nav-stack">
-                <a href="{% url 'dashboard:home' %}" class="nav-item">Dashboard</a>
-                <a href="{% url 'workspaces:list' %}" class="nav-item">Espaços</a>
-              </nav>
-            {% endif %}
+            <nav class="nav-stack">
+              <a href="{% url 'dashboard:home' %}" class="nav-item {% if request.path == '/' %}active{% endif %}">Dashboard</a>
+              <a href="{% url 'workspaces:list' %}" class="nav-item">Espaços</a>
+              <a href="#" class="nav-item">Tarefas</a>
+              <a href="#" class="nav-item">Calendário</a>
+              <a href="#" class="nav-item">Recorrências</a>
+              <a href="#" class="nav-item">Notificações</a>
+            </nav>
 
             <div class="sidebar-card">
               <p class="label">Perfil</p>

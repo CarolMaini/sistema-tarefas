@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 
 from django.db import transaction
 
-from apps.tasks.models import TaskAssignment
+from apps.tasks.models import Task, TaskAssignment
 
 from .models import ScheduleRule, TaskOccurrence
 
@@ -34,7 +34,7 @@ def _weekly_dates(rule: ScheduleRule, start_date: date, end_date: date) -> list[
     rule_ends_on = _as_date(rule.ends_on)
 
     week_start = start_date - timedelta(days=start_date.isoweekday() - 1)
-    cursor = max(week_start, rule_starts_on)
+    cursor = week_start
     result: list[date] = []
 
     while cursor <= end_date:
@@ -60,12 +60,14 @@ def _biweekly_dates(rule: ScheduleRule, start_date: date, end_date: date) -> lis
     rule_starts_on = _as_date(rule.starts_on)
     rule_ends_on = _as_date(rule.ends_on)
 
+    weekday_offsets = sorted(
+        (weekday - anchor_date.isoweekday()) % 7 for weekday in weekdays
+    )
     result: list[date] = []
     cycle_index = 0
     while True:
         base = anchor_date + timedelta(days=cycle_index * 14)
-        for weekday in weekdays:
-            delta = (weekday - anchor_date.isoweekday()) % 7
+        for delta in weekday_offsets:
             candidate = base + timedelta(days=delta)
             if candidate < start_date:
                 continue
@@ -123,7 +125,7 @@ def assign_occurrence(occurrence: TaskOccurrence, user):
 
 
 def generate_occurrences(rule: ScheduleRule, start_date: date, end_date: date) -> dict[str, int]:
-    if not rule.is_active:
+    if not rule.is_active or rule.task.status != Task.Status.ACTIVE:
         return {"created": 0, "existing": 0, "ignored": 0}
 
     if start_date > end_date:
@@ -162,6 +164,10 @@ def generate_occurrences(rule: ScheduleRule, start_date: date, end_date: date) -
                 created += 1
             else:
                 existing += 1
+
+            if occurrence.status != TaskOccurrence.Status.OPEN:
+                ignored += 1
+                continue
 
             if occurrence.schedule_rule_id is None:
                 occurrence.schedule_rule = rule

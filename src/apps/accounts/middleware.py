@@ -1,8 +1,9 @@
+from django.conf import settings
 from django.http import HttpResponseForbidden
 
 
 class DemoReadOnlyMiddleware:
-    """Prevent anonymous visitors sharing the demo account from changing its data."""
+    """Expose demo availability and prevent visitors from changing shared data."""
 
     SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
@@ -10,6 +11,7 @@ class DemoReadOnlyMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        request.demo_access_enabled = settings.DEMO_ACCESS_ENABLED
         if (
             request.session.get("demo_access")
             and request.method not in self.SAFE_METHODS
