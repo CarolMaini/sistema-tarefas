@@ -1,10 +1,11 @@
-import pytest
 from datetime import date, timedelta
+
+import pytest
 from django.contrib.auth import get_user_model
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
-from django.utils import timezone
+
 
 from apps.scheduling.models import TaskOccurrence
 
