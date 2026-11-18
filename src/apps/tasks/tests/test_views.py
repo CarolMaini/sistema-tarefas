@@ -321,3 +321,38 @@ def test_task_list_prefetches_only_three_upcoming_occurrences_per_task(client, m
             reference_date + timedelta(days=1),
             reference_date + timedelta(days=2),
         ]
+
+
+@pytest.mark.django_db
+def test_task_list_paginates_ten_tasks_and_preserves_occurrence_prefetch(client):
+    user = get_user_model().objects.create_user(
+        username="task-list-pagination-owner",
+        email="task-list-pagination-owner@example.com",
+        password="Strong-password-123!",
+    )
+    workspace = Workspace.objects.create(name="Paginação", owner=user)
+    tasks = [
+        Task.objects.create(
+            workspace=workspace,
+            title=f"Tarefa paginada {index:02d}",
+            created_by=user,
+        )
+        for index in range(12)
+    ]
+    client.force_login(user)
+
+    first_page = client.get(reverse("tasks:list", kwargs={"workspace_id": workspace.pk}))
+    second_page = client.get(
+        reverse("tasks:list", kwargs={"workspace_id": workspace.pk}),
+        {"page": 2},
+    )
+
+    assert first_page.status_code == 200
+    assert second_page.status_code == 200
+    assert first_page.context["page_obj"].paginator.per_page == 10
+    assert len(first_page.context["tasks"]) == 10
+    assert len(second_page.context["tasks"]) == 2
+    assert first_page.context["page_obj"].has_next()
+    assert second_page.context["page_obj"].has_previous()
+    assert second_page.context["tasks"][0].pk == tasks[1].pk
+    assert "upcoming_occurrences" in second_page.context["tasks"][0].__dict__
