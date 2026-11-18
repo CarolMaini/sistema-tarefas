@@ -32,6 +32,22 @@ jobs:
       - name: Run Django checks
         run: python src/manage.py check --settings=setup.settings.local
 
+      - name: Validate production settings
+        env:
+          DJANGO_SETTINGS_MODULE: setup.settings.prod
+          DJANGO_SECRET_KEY: ci-only-secret-key-that-is-long-enough-for-django-production-validation-123456
+          ALLOWED_HOSTS: example.com
+          CSRF_TRUSTED_ORIGINS: https://example.com
+          POSTGRES_DB: organizador_tarefas
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PORT: "5432"
+          EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+        run: |
+          python src/manage.py check --deploy --settings=setup.settings.prod
+          python src/manage.py collectstatic --noinput --settings=setup.settings.prod
+
       - name: Check for missing migrations
         run: python src/manage.py makemigrations --check --dry-run --settings=setup.settings.local
 
