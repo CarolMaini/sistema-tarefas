@@ -5,21 +5,27 @@
 
 ## Phase 1: Tests
 
-- [ ] T001 Criar testes de autenticação, contagem de atribuições pendentes e exclusão de concluídas/canceladas em src/apps/dashboard/tests/test_dashboard.py.
-- [ ] T002 Criar testes de isolamento para workspace alheio, membership inativa e workspace inativo em src/apps/dashboard/tests/test_dashboard.py.
-- [ ] T003 Criar testes de janela temporal, ocorrência cancelada, ordenação, limite de 10 itens e links corretos em src/apps/dashboard/tests/test_dashboard.py.
-- [ ] T004 Criar testes dos estados vazios sem workspace, sem pendências e sem próximas ocorrências em src/apps/dashboard/tests/test_dashboard.py.
+- [x] T001 Criar testes de autenticação, contagem de atribuições pendentes e exclusão de concluídas/canceladas em src/apps/dashboard/tests/test_dashboard.py.
+- [x] T002 Criar testes de isolamento para workspace alheio, membership inativa e workspace inativo em src/apps/dashboard/tests/test_dashboard.py.
+- [x] T003 Criar testes de janela temporal, ocorrência cancelada, ordenação, limite de 10 itens e links corretos em src/apps/dashboard/tests/test_dashboard.py.
+- [x] T004 Criar testes dos estados vazios sem workspace, sem pendências e sem próximas ocorrências em src/apps/dashboard/tests/test_dashboard.py.
 
 ## Phase 2: Implementation
 
-- [ ] T005 Implementar consultas seguras e context data reais em src/apps/dashboard/views.py, usando timezone.localdate() e evitando N+1.
-- [ ] T006 Substituir placeholders e renderizar indicadores, lista de próximas atribuições e estados vazios em src/templates/dashboard/dashboard.html.
+- [x] T005 Implementar consultas seguras e context data reais em src/apps/dashboard/views.py, usando timezone.localdate() e evitando N+1.
+- [x] T006 Substituir placeholders e renderizar indicadores, lista de próximas atribuições e estados vazios em src/templates/dashboard/dashboard.html.
 
 ## Phase 3: Validation
 
-- [ ] T007 Executar testes focados do Dashboard e os testes existentes de navegação.
+- [x] T007 Executar testes focados do Dashboard e os testes existentes de navegação.
 - [ ] T008 Executar Ruff, Django check, makemigrations --check --dry-run e suíte completa.
 - [ ] T009 Revisar isolamento de dados, ausência de migrations e atualizar esta lista com resultados reais.
+
+## Results so far
+
+- PR #34 integrada à main; CI aprovado (Ruff, Django checks e suíte completa de testes).
+- A verificação explícita de migrations foi adicionada ao CI em PR separada; T008 será concluída após sua aprovação.
+- T009 permanece pendente até a validação final.
 
 ## Dependencies
 
