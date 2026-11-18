@@ -21,7 +21,7 @@ CSRF_TRUSTED_ORIGINS = [
     if origin.strip()
 ]
 
-MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")  # noqa: F405
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
