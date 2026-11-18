@@ -21,6 +21,12 @@
 - [ ] T008 Executar Ruff, Django check, makemigrations --check --dry-run e suíte completa.
 - [ ] T009 Revisar isolamento de dados, ausência de migrations e atualizar esta lista com resultados reais.
 
+## Results so far
+
+- PR #34 integrada à main; CI aprovado (Ruff, Django checks e suíte completa de testes).
+- A verificação explícita de migrations foi adicionada ao CI em PR separada; T008 será concluída após sua aprovação.
+- T009 permanece pendente até a validação final.
+
 ## Dependencies
 
 T001–T004 precedem T005. T005 precede T006. T007–T009 encerram a entrega.
