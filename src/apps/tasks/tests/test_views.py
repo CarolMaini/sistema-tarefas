@@ -273,7 +273,6 @@ def test_task_creation_enforces_workspace_role_permissions(
         assert not Task.objects.filter(workspace=workspace).exists()
 
 
-
 @pytest.mark.django_db
 def test_task_list_prefetches_only_three_upcoming_occurrences_per_task(client, monkeypatch):
     user = get_user_model().objects.create_user(
