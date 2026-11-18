@@ -5,10 +5,10 @@
 
 ## Phase 1: Tests
 
-- [ ] T001 [P] Criar testes de autenticação, contagem de atribuições pendentes e exclusão de concluídas/canceladas em src/apps/dashboard/tests/test_dashboard.py.
-- [ ] T002 [P] Criar testes de isolamento para workspace alheio, membership inativa e workspace inativo em src/apps/dashboard/tests/test_dashboard.py.
-- [ ] T003 [P] Criar testes de janela temporal, ocorrência cancelada, ordenação, limite de 10 itens e links corretos em src/apps/dashboard/tests/test_dashboard.py.
-- [ ] T004 [P] Criar testes dos estados vazios sem workspace, sem pendências e sem próximas ocorrências em src/apps/dashboard/tests/test_dashboard.py.
+- [ ] T001 Criar testes de autenticação, contagem de atribuições pendentes e exclusão de concluídas/canceladas em src/apps/dashboard/tests/test_dashboard.py.
+- [ ] T002 Criar testes de isolamento para workspace alheio, membership inativa e workspace inativo em src/apps/dashboard/tests/test_dashboard.py.
+- [ ] T003 Criar testes de janela temporal, ocorrência cancelada, ordenação, limite de 10 itens e links corretos em src/apps/dashboard/tests/test_dashboard.py.
+- [ ] T004 Criar testes dos estados vazios sem workspace, sem pendências e sem próximas ocorrências em src/apps/dashboard/tests/test_dashboard.py.
 
 ## Phase 2: Implementation
 
