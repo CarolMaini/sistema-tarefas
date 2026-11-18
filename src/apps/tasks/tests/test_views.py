@@ -6,9 +6,7 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
-
 from apps.scheduling.models import TaskOccurrence
-
 from apps.tasks.models import Task
 from apps.workspaces.models import Workspace
 
